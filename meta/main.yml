@@ -1,0 +1,17 @@
+galaxy_info:
+  author: EPFL IDEV-FSD
+  description: The `openshift` module creates Kubernetes / OpenShift objects
+  license: Apache
+  min_ansible_version: 2.4
+  platforms:
+  - name: GenericUNIX
+    versions:
+    - any
+  - name: GenericLinux
+    versions:
+    - any
+  galaxy_tags:
+    - openshift
+    - oc
+
+dependencies: []
