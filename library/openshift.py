@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# Imported from the Kubespray project and modified; see ../../../LICENSE
+# Imported from the Kubespray project and modified by École
+# Polytechnique Fédérale de Lausanne; see ../LICENSE
 
 import json
 import types
