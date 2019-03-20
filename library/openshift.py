@@ -18,14 +18,14 @@ DOCUMENTATION = """
 module: kube
 short_description: Manage state in a Kubernetes Cluster
 description:
-  - Create, replace, remove, and stop resources within a Kubernetes Cluster
+  - Create, replace, remove, and stop Kubernetes objects
 version_added: "2.0"
 options:
   name:
     required: false
     default: null
     description:
-      - The name associated with resource
+      - The name associated with the resource
   filename:
     required: false
     default: null
@@ -42,13 +42,14 @@ options:
     required: false
     default: null
     description:
-      - The path to the oc bin
+      - The path to the oc (or kubectl) command
+      - By default, look for an oc command in the PATH
   namespace:
     required: false
     default: null
     description:
       - The namespace associated with the resource(s)
-  resource:
+  kind:
     required: false
     default: null
     description:
@@ -102,13 +103,13 @@ author: "Kenny Jones (@kenjones-cisco)"
 
 EXAMPLES = """
 - name: test nginx is present
-  kube: name=nginx resource=rc state=present
+  kube: name=nginx kind=rc state=present
 
 - name: test nginx is stopped
-  kube: name=nginx resource=rc state=stopped
+  kube: name=nginx kind=rc state=stopped
 
 - name: test nginx is absent
-  kube: name=nginx resource=rc state=absent
+  kube: name=nginx kind=rc state=absent
 
 - name: test nginx is present
   kube: filename=/tmp/nginx.yml
@@ -148,7 +149,7 @@ class KubeManager(object):
         self.name = module.params.get('name')
         self.filename = [f.strip() for f in module.params.get('filename') or []]
         self.content = module.params.get('content', None)
-        self.resource = module.params.get('resource')
+        self.kind = module.params.get('kind')
         self.label = module.params.get('label')
 
     def _execute(self, cmd, **kwargs):
@@ -229,10 +230,10 @@ class KubeManager(object):
         if self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
         else:
-            if not self.resource:
+            if not self.kind:
                 raise AnsibleError('resource required to delete without filename')
 
-            cmd.append(self.resource)
+            cmd.append(self.kind)
 
             if self.name:
                 cmd.append(self.name)
@@ -253,10 +254,10 @@ class KubeManager(object):
         if self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
         else:
-            if not self.resource:
+            if not self.kind:
                 raise AnsibleError('resource required without filename')
 
-            cmd.append(self.resource)
+            cmd.append(self.kind)
 
             if self.name:
                 cmd.append(self.name)
@@ -283,10 +284,10 @@ class KubeManager(object):
         if self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
         else:
-            if not self.resource:
+            if not self.kind:
                 raise AnsibleError('resource required to stop without filename')
 
-            cmd.append(self.resource)
+            cmd.append(self.kind)
 
             if self.name:
                 cmd.append(self.name)
@@ -388,7 +389,7 @@ def main():
             filename=dict(type='list', aliases=['files', 'file', 'filenames']),
             content=dict(type='str'),
             namespace=dict(),
-            resource=dict(),
+            kind=dict(aliases=['resource']),
             label=dict(),
             server=dict(),
             oc=dict(),
