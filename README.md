@@ -1,4 +1,4 @@
-`epfl-idevelop.ansible_module_openshift`
+`epfl_idevelop.ansible_module_openshift`
 =========
 
 This role provides the `openshift` module, that you can use to create
