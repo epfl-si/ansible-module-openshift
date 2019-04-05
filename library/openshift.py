@@ -5,6 +5,8 @@
 # Polytechnique Fédérale de Lausanne; see ../LICENSE
 
 import json
+import re
+import shlex
 import types
 
 from ansible.module_utils.basic import *  # noqa
@@ -90,7 +92,7 @@ options:
       latest handles creating or updating based on field-by-field diff,
       reloaded handles updating resource(s) definition using definition file,
       stopped handles stopping resource(s) based on other options.
-      
+
       Note that "latest" is really only useful for "simple" Kubernetes objects,
       such as ConfigMaps. Even though the diff operator avoids comparing known-
       volatile keys such as "metadata" and "state", Kubernetes does default-value
@@ -131,6 +133,15 @@ class KubeManager(object):
     def __init__(self, module):
 
         self.module = module
+
+        if (
+                module.params['content'] is not None and
+                module.params['kind'] is None and
+                module.params['name'] is None and
+                module.params['namespace'] is None
+        ):
+            u = self._parse_object_identity(module.params['content'])
+            module.params.update(u)
 
         self.oc = module.params.get('oc')
         if self.oc is None:
@@ -380,6 +391,65 @@ class KubeManager(object):
             return True
         else:
             return False
+
+    def _parse_object_identity(self, yaml):
+        def yaml_section(yaml, header):
+            in_section = False
+            indent = None
+            for line in yaml.split('\n'):
+                if re.match(r"\s*#", line):
+                    continue
+                if not re.search(r"\S", line):
+                    continue
+
+                if line == header and not in_section:
+                    in_section = True
+                    continue
+
+                if not in_section:
+                    continue
+
+                if indent is None:
+                    indent, payload = re.match(r"(\s*)(.*?)$", line).groups()
+                    yield payload
+                    continue
+                else:
+                    matched = re.match(indent + r"(\w.*)$", line)
+                    if matched:   # Same indent
+                        yield matched.group(1)
+                    elif re.match(indent, line):
+                        continue  # Ignore line with bigger indent
+                    else:
+                        break     # We're done
+
+        def value_sameline_unquoted(key, line):
+            matched = re.match(key + r": (.*)$", line)
+            if not matched:
+                return None
+
+            value_quoted = matched.group(1).strip()
+            if re.match(r"[\"'].*[\"']$", value_quoted):
+                return ' '.join(shlex.split(value_quoted))
+            else:
+                return value_quoted
+
+        parsed = {}
+
+        for line in yaml.split('\n'):
+            kind = value_sameline_unquoted('kind', line)
+            if kind:
+                parsed['kind'] = kind
+
+        for line in yaml_section(yaml, "metadata:"):
+            name = value_sameline_unquoted('name', line)
+            if name:
+                parsed['name'] = name
+
+            namespace = value_sameline_unquoted('namespace', line)
+            if namespace:
+                parsed['namespace'] = namespace
+
+        return parsed
 
 
 def main():
