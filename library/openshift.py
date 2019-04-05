@@ -151,7 +151,8 @@ class KubeManager(object):
         if module.params.get('server'):
             self.base_cmd.append('--server=' + module.params.get('server'))
 
-        if module.params.get('log_level'):            self.base_cmd.append('--v=' + str(module.params.get('log_level')))
+        if module.params.get('log_level'):
+            self.base_cmd.append('--v=' + str(module.params.get('log_level')))
 
         if module.params.get('namespace'):
             self.base_cmd.append('--namespace=' + module.params.get('namespace'))
