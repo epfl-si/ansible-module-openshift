@@ -199,13 +199,25 @@ class ActionModule(ActionBase):
             # This image is built from another one.
             frm = args['from']
             if isinstance(frm, string_types):
-                from_parts = frm.split(':', 2)
-                if len(from_parts) < 2:
-                    from_parts[1] = 'latest'
-                frm = {
-                    'kind': 'ImageStreamTag',
-                    'imageStreamTag': '%s:%s' % from_parts
-                }
+                if "/" in frm:
+                    frm = {
+                        'kind': 'DockerImage',
+                        'name': frm
+                    }
+                else:
+                    # Assume the image is a "local" ImageStream (in
+                    # same namespace). Note: that won't work if what
+                    # you wanted was to e.g. pull "busybox" from the
+                    # Docker Hub. Either pass a full Docker URL (e.g.
+                    # docker.io/busybox), or pas a data structure in
+                    # the 'from:' argument.
+                    from_parts = frm.split(':', 2)
+                    if len(from_parts) < 2:
+                        from_parts[1] = 'latest'
+                    frm = {
+                        'kind': 'ImageStreamTag',
+                        'imageStreamTag': '%s:%s' % from_parts
+                    }
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
             spec['strategy']['dockerStrategy']['from'] = frm
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html#image-change-triggers
