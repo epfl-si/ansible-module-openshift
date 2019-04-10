@@ -154,6 +154,8 @@ class ActionModule(ActionBase):
     def _run_openshift_imagestream_task(self, args):
         if 'from' not in args:
             spec = None
+        elif not args['from']:
+            spec = None
         elif isinstance(args['from'], string_types):
             spec = {
                 'tags': [
@@ -199,7 +201,7 @@ class ActionModule(ActionBase):
             'triggers': args.get('triggers', [])
         }
 
-        if 'from' in args:
+        if 'from' in args and args['from']:
             # This image is built from another one.
             frm = args['from']
             if isinstance(frm, string_types):
@@ -217,7 +219,7 @@ class ActionModule(ActionBase):
                     # the 'from:' argument.
                     from_parts = frm.split(':', 2)
                     if len(from_parts) < 2:
-                        from_parts[1] = 'latest'
+                        from_parts.append('latest')
                     frm = {
                         'kind': 'ImageStreamTag',
                         'imageStreamTag': '%s:%s' % from_parts
