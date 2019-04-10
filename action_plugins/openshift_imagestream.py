@@ -222,7 +222,8 @@ class ActionModule(ActionBase):
                         from_parts.append('latest')
                     frm = {
                         'kind': 'ImageStreamTag',
-                        'imageStreamTag': '%s:%s' % tuple(from_parts)
+                        'name': '%s:%s' % tuple(from_parts),
+                        'namespace': self.run.namespace
                     }
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
             spec['strategy']['dockerStrategy']['from'] = frm
