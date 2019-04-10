@@ -85,6 +85,12 @@ class ActionModule(ActionBase):
         args = self._task.args
 
         self.run = Run()
+        try:
+            self.run.name = args['name']
+            self.run.namespace = args['namespace']
+        except KeyError as e:
+            raise AnsibleActionFail(
+                "Missing field `%s` in `openshift_imagestream`" % e.args[0])
         self.run.tmp = tmp
         self.run.task_vars = task_vars
         self.run.state = args.get('state', 'latest')
@@ -115,10 +121,10 @@ class ActionModule(ActionBase):
         deepmerge(new_result, self.result)
         deepmerge(result_flags, self.result)
 
-    def _run_openshift_task(self, kind, name, namespace, spec=None):
+    def _run_openshift_task(self, kind, spec=None):
         metadata = deepcopy(self.run.metadata)
-        metadata['name'] = name
-        metadata['namespace'] = namespace
+        metadata['name'] = self.run.name
+        metadata['namespace'] = self.run.namespace
 
         if spec == {}:
             spec = None
@@ -141,8 +147,8 @@ class ActionModule(ActionBase):
         self._run_task("openshift",
                        {'state': self.run.state,
                         'kind': kind,
-                        'name': name,
-                        'namespace': namespace,
+                        'name': self.run.name,
+                        'namespace': self.run.namespace,
                         'content': to_yaml(content, indent=2)})
 
     def _run_openshift_imagestream_task(self, args):
@@ -163,9 +169,7 @@ class ActionModule(ActionBase):
         else:
             raise AnsibleActionFail("'from' is expected to be a string, but got %s instead" % type(args['from']))
 
-        self._run_openshift_task(
-            'ImageStream', args['name'], args['namespace'],
-            spec)
+        self._run_openshift_task('ImageStream', spec)
 
     def _maybe_run_openshift_buildconfig_task(self, args):
         """Create/update/delete the BuildConfig Kubernetes object.
@@ -187,7 +191,7 @@ class ActionModule(ActionBase):
         spec = {
             'source': source,
             'output': {'to': {'kind': 'ImageStreamTag',
-                              'name': '%s:%s' % (args['name'], self.run.tag)}},
+                              'name': '%s:%s' % (self.run.name, self.run.tag)}},
             'strategy': {
                 'type': 'Docker',
                 'dockerStrategy': {'noCache': True, 'forcePull': True}
@@ -223,19 +227,22 @@ class ActionModule(ActionBase):
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html#image-change-triggers
             spec['triggers'] += [{'type': 'ImageChange'}]
 
-        self._run_openshift_task('BuildConfig', args['name'], args['namespace'], spec)
+        self._run_openshift_task('BuildConfig', spec)
 
     def _get_source_stanza(self, args):
         if 'dockerfile' in args:
             return {'type': 'Dockerfile', 'dockerfile': args['dockerfile']}
         elif 'git' in args:
             git = args['git']
-            retval = {
-                'type': 'Git',
-                'git': {'uri': git['repository']}
-            }
-            if 'ref' in git:
-                retval['git']['ref'] = git['ref']
-            if 'path' in git:
-                retval['contextDir'] = git['path']
-            return retval
+            try:
+                retval = {
+                    'type': 'Git',
+                    'git': {'uri': git['repository']}
+                }
+                if 'ref' in git:
+                    retval['git']['ref'] = git['ref']
+                if 'path' in git:
+                    retval['contextDir'] = git['path']
+                return retval
+            except KeyError as e:
+                raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
