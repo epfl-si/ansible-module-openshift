@@ -152,24 +152,18 @@ class ActionModule(ActionBase):
                         'content': to_yaml(content, indent=2)})
 
     def _run_openshift_imagestream_task(self, args):
-        if 'from' not in args:
-            spec = None
-        elif not args['from']:
-            spec = None
-        elif isinstance(args['from'], string_types):
-            spec = {
-                'tags': [
-                    {'name': self.run.tag,
-                     'from': {
-                         'kind': 'DockerImage',
-                         'name': args['from'],
-                      },
-                     'importPolicy': {'scheduled': True}
-                     }
-                 ]
-            }
+        frm = self._get_from_struct(args)
+        if frm and frm['kind'] == 'DockerImage':
+            spec = {'tags': [{
+                'name': self.run.tag,
+                'from': frm,
+                'importPolicy': {'scheduled': True}
+            }]}
         else:
-            raise AnsibleActionFail("'from' is expected to be a string, but got %s instead" % type(args['from']))
+            # Note: tag tracking as described in
+            # https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/builds_and_image_streams.html#image-stream-tag
+            # is not implemented yet.
+            spec = None
 
         self._run_openshift_task('ImageStream', spec)
 
@@ -201,30 +195,8 @@ class ActionModule(ActionBase):
             'triggers': args.get('triggers', [])
         }
 
-        if 'from' in args and args['from']:
-            # This image is built from another one.
-            frm = args['from']
-            if isinstance(frm, string_types):
-                if "/" in frm:
-                    frm = {
-                        'kind': 'DockerImage',
-                        'name': frm
-                    }
-                else:
-                    # Assume the image is a "local" ImageStream (in
-                    # same namespace). Note: that won't work if what
-                    # you wanted was to e.g. pull "busybox" from the
-                    # Docker Hub. Either pass a full Docker URL (e.g.
-                    # docker.io/busybox), or pas a data structure in
-                    # the 'from:' argument.
-                    from_parts = frm.split(':', 2)
-                    if len(from_parts) < 2:
-                        from_parts.append('latest')
-                    frm = {
-                        'kind': 'ImageStreamTag',
-                        'name': '%s:%s' % tuple(from_parts),
-                        'namespace': self.run.namespace
-                    }
+        frm = self._get_from_struct(args)
+        if frm:
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
             spec['strategy']['dockerStrategy']['from'] = frm
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html#image-change-triggers
@@ -249,3 +221,34 @@ class ActionModule(ActionBase):
                 return retval
             except KeyError as e:
                 raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
+
+    def _get_from_struct(self, args):
+        """Returns the "from" sub-structure for ImageStreams and BuildConfigs."""
+        if 'from' not in args:
+            return None
+        if not args['from']:
+            return None
+
+        if not isinstance(args['from'], string_types):
+            return args['from']
+
+        if "/" in args['from']:
+            return {
+                'kind': 'DockerImage',
+                'name': args['from']
+            }
+        else:
+            # Assume the image is a "local" ImageStream (in
+            # same namespace). Note: that won't work if what
+            # you wanted was to e.g. pull "busybox" from the
+            # Docker Hub. Either pass a full Docker URL (e.g.
+            # docker.io/busybox), or pas a data structure in
+            # the 'from:' argument.
+            from_parts = args['from'].split(':', 2)
+            if len(from_parts) < 2:
+                from_parts.append('latest')
+            return {
+                'kind': 'ImageStreamTag',
+                'name': '%s:%s' % tuple(from_parts),
+                'namespace': self.run.namespace
+            }
