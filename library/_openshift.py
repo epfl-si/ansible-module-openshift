@@ -1,169 +1,84 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+"""Back-end (remote) half of the "openshift" action plugin."""
+
 # Imported from the Kubespray project and modified by École
 # Polytechnique Fédérale de Lausanne; see ../LICENSE
 
 import json
-import re
-import shlex
 import types
 
-from ansible.module_utils.basic import *  # noqa
+from ansible.module_utils.basic import AnsibleModule
 try:
     from ansible.errors import AnsibleError
 except ImportError:
     AnsibleError = Exception
 
 
-DOCUMENTATION = """
----
-module: kube
-short_description: Manage state in a Kubernetes Cluster
-description:
-  - Create, replace, remove, and stop Kubernetes objects
-version_added: "2.0"
-options:
-  name:
-    required: false
-    default: null
-    description:
-      - The name associated with the resource
-  filename:
-    required: false
-    default: null
-    description:
-      - The path and filename of the resource(s) definition file(s).
-      - To operate on several files this can accept a comma separated list of files or a list of files.
-    aliases: [ 'files', 'file', 'filenames' ]
-  content:
-    required: false
-    default: null
-    description:
-      - The plain-text YAML to pass to "oc create"'s standard input
-  oc:
-    required: false
-    default: null
-    description:
-      - The path to the oc (or kubectl) command
-      - By default, look for an oc command in the PATH
-  namespace:
-    required: false
-    default: null
-    description:
-      - The namespace associated with the resource(s)
-  kind:
-    required: false
-    default: null
-    description:
-      - The resource to perform an action on. pods (po), replicationControllers (rc), services (svc)
-  label:
-    required: false
-    default: null
-    description:
-      - The labels used to filter specific resources.
-  server:
-    required: false
-    default: null
-    description:
-      - The url for the API server that commands are executed against.
-  force:
-    required: false
-    default: false
-    description:
-      - A flag to indicate to force delete, replace, or stop.
-  all:
-    required: false
-    default: false
-    description:
-      - A flag to indicate delete all, stop all, or all namespaces when checking exists.
-  log_level:
-    required: false
-    default: 0
-    description:
-      - Indicates the level of verbosity of logging by oc.
-  state:
-    required: false
-    choices: ['present', 'absent', 'latest', 'reloaded', 'stopped']
-    default: present
-    description: |
-      present handles checking existence or creating if definition file provided,
-      absent handles deleting resource(s) based on other options,
-      latest handles creating or updating based on field-by-field diff,
-      reloaded handles updating resource(s) definition using definition file,
-      stopped handles stopping resource(s) based on other options.
+class OpenshiftRemoteTask(object):
 
-      Note that "latest" is really only useful for "simple" Kubernetes objects,
-      such as ConfigMaps. Even though the diff operator avoids comparing known-
-      volatile keys such as "metadata" and "state", Kubernetes does default-value
-      substitution at admission time. Therefore, in order for "latest" to show
-      no diff, your YAML needs to include every single setting, even those
-      unchanged from their default value.
-requirements:
-  - oc
-author: "Kenny Jones (@kenjones-cisco)"
-"""
+    module_spec = dict(
+        argument_spec=dict(
+            kind=dict(aliases=['resource']),
+            name={},
+            namespace={},
+            filename=dict(type='list', aliases=['files', 'file', 'filenames']),
+            content=dict(type='str'),
+            label={},
+            server={},
+            oc={},
+            force=dict(default=False, type='bool'),
+            all=dict(default=False, type='bool'),
+            log_level=dict(default=0, type='int'),
+            state=dict(default='present', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
+        ),
+        mutually_exclusive=[['filename', 'content']])
 
-EXAMPLES = """
-- name: test nginx is present
-  kube: name=nginx kind=rc state=present
+    def __init__(self):
+        self.module = AnsibleModule(**self.module_spec)
 
-- name: test nginx is stopped
-  kube: name=nginx kind=rc state=stopped
-
-- name: test nginx is absent
-  kube: name=nginx kind=rc state=absent
-
-- name: test nginx is present
-  kube: filename=/tmp/nginx.yml
-
-- name: test nginx and postgresql are present
-  kube: files=/tmp/nginx.yml,/tmp/postgresql.yml
-
-- name: test nginx and postgresql are present
-  kube:
-    files:
-      - /tmp/nginx.yml
-      - /tmp/postgresql.yml
-"""
-
-
-class KubeManager(object):
-
-    def __init__(self, module):
-
-        self.module = module
-
-        if (
-                module.params['content'] is not None and
-                module.params['kind'] is None and
-                module.params['name'] is None and
-                module.params['namespace'] is None
-        ):
-            u = self._parse_object_identity(module.params['content'])
-            module.params.update(u)
-
-        self.oc = module.params.get('oc')
+        self.oc = self.module.params.get('oc')
         if self.oc is None:
-            self.oc = module.get_bin_path('oc', True, ['/opt/bin'])
+            self.oc = self.module.get_bin_path('oc', True, ['/opt/bin'])
         self.base_cmd = [self.oc]
 
-        if module.params.get('server'):
-            self.base_cmd.append('--server=' + module.params.get('server'))
+        if self.module.params.get('server'):
+            self.base_cmd.append('--server=' + self.module.params.get('server'))
 
-        if module.params.get('log_level'):
-            self.base_cmd.append('--v=' + str(module.params.get('log_level')))
+        if self.module.params.get('log_level'):
+            self.base_cmd.append('--v=' + str(self.module.params.get('log_level')))
 
-        if module.params.get('namespace'):
-            self.base_cmd.append('--namespace=' + module.params.get('namespace'))
+        if self.module.params.get('namespace'):
+            self.base_cmd.append('--namespace=' + self.module.params.get('namespace'))
 
-        self.all = module.params.get('all')
-        self.force = module.params.get('force')
-        self.name = module.params.get('name')
-        self.filename = [f.strip() for f in module.params.get('filename') or []]
-        self.content = module.params.get('content', None)
-        self.kind = module.params.get('kind')
-        self.label = module.params.get('label')
+        self.all = self.module.params.get('all')
+        self.force = self.module.params.get('force')
+        self.name = self.module.params.get('name')
+        self.filename = [f.strip() for f in self.module.params.get('filename') or []]
+        self.content = self.module.params.get('content', None)
+        self.kind = self.module.params.get('kind')
+        self.label = self.module.params.get('label')
+
+    def run(self):
+        state = self.module.params.get('state')
+        if state == 'present':
+            return self.create()
+
+        elif state == 'absent':
+            return self.delete()
+
+        elif state == 'reloaded':
+            return self.replace()
+
+        elif state == 'stopped':
+            return self.stop()
+
+        elif state == 'latest':
+            return self.replace()
+
+        else:
+            raise AnsibleError('Unrecognized state %s.' % state)
 
     def _execute(self, cmd, **kwargs):
         args = self.base_cmd + cmd
@@ -200,9 +115,11 @@ class KubeManager(object):
         else:
             raise AnsibleError('filename or content required')
 
-
     def replace(self, force=True):
-        rc, out, err = self.module.run_command(self.base_cmd + ['get', '--no-headers', '-o', 'json'] + self._get_oc_flags())
+        rc, out, err = self.module.run_command(
+            self.base_cmd
+            + ['get', '--no-headers', '-o', 'json']
+            + self._get_oc_flags())
         if not rc:
             current_state = json.loads(out)
             cmd = self.base_cmd + ['create', '--dry-run', '-o', 'json']
@@ -393,105 +310,6 @@ class KubeManager(object):
         else:
             return False
 
-    def _parse_object_identity(self, yaml):
-        def yaml_section(yaml, header):
-            in_section = False
-            indent = None
-            for line in yaml.split('\n'):
-                if re.match(r"\s*#", line):
-                    continue
-                if not re.search(r"\S", line):
-                    continue
-
-                if line == header and not in_section:
-                    in_section = True
-                    continue
-
-                if not in_section:
-                    continue
-
-                if indent is None:
-                    indent, payload = re.match(r"(\s*)(.*?)$", line).groups()
-                    yield payload
-                    continue
-                else:
-                    matched = re.match(indent + r"(\w.*)$", line)
-                    if matched:   # Same indent
-                        yield matched.group(1)
-                    elif re.match(indent, line):
-                        continue  # Ignore line with bigger indent
-                    else:
-                        break     # We're done
-
-        def value_sameline_unquoted(key, line):
-            matched = re.match(key + r": (.*)$", line)
-            if not matched:
-                return None
-
-            value_quoted = matched.group(1).strip()
-            if re.match(r"[\"'].*[\"']$", value_quoted):
-                return ' '.join(shlex.split(value_quoted))
-            else:
-                return value_quoted
-
-        parsed = {}
-
-        for line in yaml.split('\n'):
-            kind = value_sameline_unquoted('kind', line)
-            if kind:
-                parsed['kind'] = kind
-
-        for line in yaml_section(yaml, "metadata:"):
-            name = value_sameline_unquoted('name', line)
-            if name:
-                parsed['name'] = name
-
-            namespace = value_sameline_unquoted('namespace', line)
-            if namespace:
-                parsed['namespace'] = namespace
-
-        return parsed
-
-
-def main():
-
-    module = AnsibleModule(
-        argument_spec=dict(
-            name=dict(),
-            filename=dict(type='list', aliases=['files', 'file', 'filenames']),
-            content=dict(type='str'),
-            namespace=dict(),
-            kind=dict(aliases=['resource']),
-            label=dict(),
-            server=dict(),
-            oc=dict(),
-            force=dict(default=False, type='bool'),
-            all=dict(default=False, type='bool'),
-            log_level=dict(default=0, type='int'),
-            state=dict(default='present', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
-            ),
-        mutually_exclusive=[['filename', 'content']]
-    )
-
-    manager = KubeManager(module)
-    state = module.params.get('state')
-    if state == 'present':
-        return manager.create()
-
-    elif state == 'absent':
-        return manager.delete()
-
-    elif state == 'reloaded':
-        return manager.replace()
-
-    elif state == 'stopped':
-        return manager.stop()
-
-    elif state == 'latest':
-        return manager.replace()
-
-    else:
-        raise AnsibleError('Unrecognized state %s.' % state)
 
 if __name__ == '__main__':
-    main()
+    OpenshiftRemoteTask().run()

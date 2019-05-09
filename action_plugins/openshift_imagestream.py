@@ -4,11 +4,9 @@
 """Create ImageStreams (and their BuildConfigs) with less boilerplate."""
 
 from copy import deepcopy
-import yaml
 
 from ansible.errors import AnsibleActionFail
 from ansible.module_utils.six import string_types
-from ansible.parsing.yaml.dumper import AnsibleDumper
 from ansible.plugins.action import ActionBase
 
 DOCUMENTATION = """
@@ -58,23 +56,6 @@ EXAMPLES = """
 """
 
 
-def to_yaml(value, **kwargs):
-    return yaml.dump(value, Dumper=AnsibleDumper, **kwargs)
-
-
-def deepmerge(source, destination):
-    """Found at https://stackoverflow.com/a/20666342/435004"""
-    for key, value in source.items():
-        if isinstance(value, dict):
-            # get node or create one
-            node = destination.setdefault(key, {})
-            deepmerge(value, node)
-        else:
-            destination[key] = value
-
-    return destination
-
-
 class ActionModule(ActionBase):
     def run(self, tmp=None, task_vars=None):
         self.result = super(ActionModule, self).run(tmp, task_vars)
@@ -97,37 +78,21 @@ class ActionModule(ActionBase):
         self.run.metadata = args.get('metadata')
         self.run.tag = args.get('tag', 'latest')
 
-        self._run_openshift_imagestream_task(args)
-        self._maybe_run_openshift_buildconfig_task(args)
+        self._run_openshift_imagestream_action(args)
+        self._maybe_run_openshift_buildconfig_action(args)
 
         return self.result
 
-    def _run_task(self, module_name, module_args):
+    def _run_openshift_action(self, kind, spec=None):
+        # https://www.ansible.com/blog/how-to-extend-ansible-through-plugins
+        # says to look into Ansible's lib/ansible/plugins/action/template.py,
+        # which I did.
         if self.result.get('failed'):
             return
 
-        # https://www.ansible.com/blog/how-to-extend-ansible-through-plugins
-        new_result = self._execute_module(
-            module_name=module_name,
-            module_args=module_args,
-            task_vars=self.run.task_vars,
-            tmp=self.run.tmp)
-
-        result_flags = {}
-        for bool_key in ('failed', 'changed'):
-            if bool_key in new_result and bool_key in self.result:
-                result_flags[bool_key] = (self.result[bool_key] or
-                                          new_result[bool_key])
-        deepmerge(new_result, self.result)
-        deepmerge(result_flags, self.result)
-
-    def _run_openshift_task(self, kind, spec=None):
         metadata = deepcopy(self.run.metadata)
         metadata['name'] = self.run.name
         metadata['namespace'] = self.run.namespace
-
-        if spec == {}:
-            spec = None
 
         if kind.lower() == "imagestream":
             api_version = "image.openshift.io/v1"
@@ -136,22 +101,32 @@ class ActionModule(ActionBase):
         else:
             api_version = "v1"  # and hope for the best
 
-        content = {
+        args = {
+            'state': self.run.state,
             'kind': kind,
             'apiVersion': api_version,
             'metadata': metadata
         }
         if spec:
-            content['spec'] = spec
+            args['spec'] = spec
 
-        self._run_task("openshift",
-                       {'state': self.run.state,
-                        'kind': kind,
-                        'name': self.run.name,
-                        'namespace': self.run.namespace,
-                        'content': to_yaml(content, indent=2)})
+        return self._run_action('openshift', args)
 
-    def _run_openshift_imagestream_task(self, args):
+    def _run_action(self, action_name, args):
+        new_task = self._task.copy()
+        new_task.args = args
+
+        openshift_action = self._shared_loader_obj.action_loader.get(
+            action_name,
+            task=new_task,
+            connection=self._connection,
+            play_context=self._play_context,
+            loader=self._loader,
+            templar=self._templar,
+            shared_loader_obj=self._shared_loader_obj)
+        self.result.update(openshift_action.run())
+
+    def _run_openshift_imagestream_action(self, args):
         frm = self._get_from_struct(args)
         if frm and frm['kind'] == 'DockerImage':
             spec = {'tags': [{
@@ -165,9 +140,9 @@ class ActionModule(ActionBase):
             # is not implemented yet.
             spec = None
 
-        self._run_openshift_task('ImageStream', spec)
+        self._run_openshift_action('ImageStream', spec)
 
-    def _maybe_run_openshift_buildconfig_task(self, args):
+    def _maybe_run_openshift_buildconfig_action(self, args):
         """Create/update/delete the BuildConfig Kubernetes object.
 
         If the `openshift_imagestream` action doesn't just consist of
@@ -202,7 +177,7 @@ class ActionModule(ActionBase):
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html#image-change-triggers
             spec['triggers'] += [{'type': 'ImageChange'}]
 
-        self._run_openshift_task('BuildConfig', spec)
+        self._run_openshift_action('BuildConfig', spec)
 
     def _get_source_stanza(self, args):
         if 'dockerfile' in args:
