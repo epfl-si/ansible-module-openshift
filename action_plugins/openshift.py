@@ -100,6 +100,40 @@ requirements:
 author: "Kenny Jones (@kenjones-cisco)"
 """
 
+EXAMPLES = """
+---
+
+- name: An OpenShift object that Ansible will create or update
+  openshift:
+    state: latest
+    apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      name: foo
+      namespace: my-namespace
+    spec:
+      host: prometheus-wwp.epfl.ch
+
+---
+
+- name: An OpenShift object with the YAML content as quoted payload
+  openshift:
+    state: latest
+    content: |
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: prometheus
+        namespace: "{{ openshift_namespace }}"
+        annotations:
+          # Brain-damaged Ansible would parse string values that
+          # happen to be valid JSON (!). Hiding them inside the YAML
+          # prevents this.
+          image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"{{ monitoring_prober_image_name }}:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"prober\")].image"}]'
+      spec:
+
+"""
+
 
 def deepmerge(source, destination):
     """Found at https://stackoverflow.com/a/20666342/435004"""
@@ -160,11 +194,7 @@ class ActionModule(ActionBase):
         return self.__result
 
     def _parse_object_identity(self, content_yaml):
-        """Fish `kind`, `name` and (optionally) `namespace` out of a YAML "content" field.
-
-        This is a backward compatibility feature. Please don't use an
-        inlined-YAML "content" field in new playbooks.
-        """
+        """Fish `kind`, `name` and (optionally) `namespace` out of a YAML "content" field."""
 
         parsed = yaml.load(content_yaml)
         retval = {}
