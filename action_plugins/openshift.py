@@ -4,8 +4,6 @@
 # Imported from the Kubespray project and modified by École
 # Polytechnique Fédérale de Lausanne; see ../LICENSE
 
-
-from copy import deepcopy
 from io import StringIO
 import yaml
 
@@ -17,6 +15,9 @@ try:
     from ansible.errors import AnsibleError
 except ImportError:
     AnsibleError = Exception
+
+# There is a name clash with a module in Ansible named "copy":
+deepcopy = __import__('copy').deepcopy
 
 
 DOCUMENTATION = """

@@ -3,11 +3,13 @@
 
 """Create ImageStreams (and their BuildConfigs) with less boilerplate."""
 
-from copy import deepcopy
-
 from ansible.errors import AnsibleActionFail
 from ansible.module_utils.six import string_types
 from ansible.plugins.action import ActionBase
+
+# There is a name clash with a module in Ansible named "copy":
+deepcopy = __import__('copy').deepcopy
+
 
 DOCUMENTATION = """
 ---
