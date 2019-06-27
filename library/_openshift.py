@@ -97,14 +97,11 @@ class OpenshiftRemoteTask(object):
         rc, out, err = self.module.run_command(args)
         return rc == 0
 
-    def create(self, check=True, force=True):
+    def create(self, check=True):
         if check and self.exists():
             return self.module.exit_json(changed=False)
 
         cmd = ['apply']
-
-        if force:
-            cmd.append('--force')
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
@@ -115,7 +112,7 @@ class OpenshiftRemoteTask(object):
         else:
             raise AnsibleError('filename or content required')
 
-    def replace(self, force=True):
+    def replace(self):
         rc, out, err = self.module.run_command(
             self.base_cmd
             + ['get', '--no-headers', '-o', 'json']
@@ -137,9 +134,6 @@ class OpenshiftRemoteTask(object):
                 return self.module.exit_json(changed=False)
 
         cmd = ['apply']
-
-        if force:
-            cmd.append('--force')
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
