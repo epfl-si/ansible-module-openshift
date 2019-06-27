@@ -118,6 +118,7 @@ class OpenshiftRemoteTask(object):
             + ['get', '--no-headers', '-o', 'json']
             + self._get_oc_flags())
         if not rc:
+            # Object already exists; figure out whether we need to patch it
             current_state = json.loads(out)
             cmd = self.base_cmd + ['create', '--dry-run', '-o', 'json']
             if self.content is not None:
@@ -131,6 +132,7 @@ class OpenshiftRemoteTask(object):
             new_state = json.loads(out)
 
             if self._is_same_configuration(new_state, current_state):
+                # ... We don't need to patch it
                 return self.module.exit_json(changed=False)
 
         cmd = ['apply']
