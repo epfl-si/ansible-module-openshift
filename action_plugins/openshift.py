@@ -197,7 +197,7 @@ class ActionModule(ActionBase):
     def _parse_object_identity(self, content_yaml):
         """Fish `kind`, `name` and (optionally) `namespace` out of a YAML "content" field."""
 
-        parsed = yaml.load(content_yaml)
+        parsed = yaml.safe_load(content_yaml)
         retval = {}
         if 'kind' in parsed:
             retval['kind'] = parsed['kind']
