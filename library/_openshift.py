@@ -7,6 +7,7 @@
 # Polytechnique Fédérale de Lausanne; see ../LICENSE
 
 import json
+import re
 import types
 
 from ansible.module_utils.basic import AnsibleModule
@@ -134,6 +135,25 @@ class OpenshiftRemoteTask(object):
             if self._is_same_configuration(new_state, current_state):
                 # ... We don't need to patch it
                 return self.module.exit_json(changed=False)
+
+            # As per https://github.com/kubernetes/kubernetes/issues/70674,
+            # updates that don't specify a metadata.resourceVersion undergo some
+            # kind of hazard of being rejected (depending on whether they have ever been
+            # edited with something `kubectl apply` or `oc apply`, IIUC).
+            # So add a metadata.resourceVersion if we can find one.
+            if 'metadata' in current_state and 'resourceVersion' in current_state['metadata']:
+                resource_version = current_state['metadata']['resourceVersion']
+
+                self.content = re.sub(
+                    r"""
+                      ^ (metadata:\s*\n)              # metadata is expected at top level
+                        ( (?:  \s*  [#] .* \n)*  )    # Any number of comment lines
+                        ( \s+ ) ( \w )                # Indented block under metadata:
+                    """,
+                    r'\1\2\3resourceVersion: "%s"\n\3\4' % re.escape(str(resource_version)),
+                    self.content,
+                    flags=re.MULTILINE|re.VERBOSE)
+
 
         cmd = ['apply']
 
