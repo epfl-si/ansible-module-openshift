@@ -86,6 +86,11 @@ options:
     default: 0
     description:
       - Indicates the level of verbosity of logging by oc.
+  as_admin:
+    required: false
+    default: false
+    descriprtion:
+      - A flag to indicate admin impersonation for privileged actions on the kubernete cluster (ie. create a custom PersistentVolume)
   state:
     required: false
     choices: ['present', 'absent', 'latest', 'reloaded', 'stopped']
@@ -153,7 +158,7 @@ class ActionModule(ActionBase):
     # These arguments are for passing to the _openshift remote task;
     # they make no sense to Kubernetes.
     REMOTE_ARGS = set(['state', 'oc', 'label', 'server',
-                       'force', 'all', 'log_level', 'name', 'namespace'])
+                       'force', 'all', 'log_level', 'name', 'namespace', 'as_admin'])
 
     def run(self, tmp=None, task_vars=None):
         self.__result = super(ActionModule, self).run(tmp, task_vars)
