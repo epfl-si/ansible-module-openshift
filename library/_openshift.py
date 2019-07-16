@@ -6,7 +6,6 @@
 # Polytechnique Fédérale de Lausanne; see ../LICENSE
 
 import json
-import types
 import sys
 
 from ansible.module_utils.basic import AnsibleModule
@@ -265,16 +264,10 @@ class OpenshiftRemoteTask(object):
         """
 
         def is_list(u):
-            if (sys.version_info >= (3,0)):
                 return isinstance(u, list)
-            else:
-                return isinstance(u, types.ListType)
 
         def is_dict(u):
-            if (sys.version_info >= (3,0)):
                 return isinstance(u, dict)
-            else:
-                return isinstance(u, types.DictType)
 
         if c_ansible == c_live:
             # Does small work of scalar types, including None; and if
