@@ -264,10 +264,10 @@ class OpenshiftRemoteTask(object):
         """
 
         def is_list(u):
-                return isinstance(u, list)
+            return isinstance(u, list)
 
         def is_dict(u):
-                return isinstance(u, dict)
+            return isinstance(u, dict)
 
         if c_ansible == c_live:
             # Does small work of scalar types, including None; and if
