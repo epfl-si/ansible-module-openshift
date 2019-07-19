@@ -32,7 +32,7 @@ class OpenshiftRemoteTask(object):
             all=dict(default=False, type='bool'),
             log_level=dict(default=0, type='int'),
             state=dict(default='present', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
-            as_admin=dict(default=False, type='bool'),
+            as_user=dict( type='str'),
         ),
         mutually_exclusive=[['filename', 'content']])
 
@@ -60,7 +60,7 @@ class OpenshiftRemoteTask(object):
         self.content = self.module.params.get('content', None)
         self.kind = self.module.params.get('kind')
         self.label = self.module.params.get('label')
-        self.as_admin=self.module.params.get('as_admin')
+        self.as_user=self.module.params.get('as_user')
 
     def run(self):
         state = self.module.params.get('state')
@@ -144,8 +144,8 @@ class OpenshiftRemoteTask(object):
 
         if force:
             cmd.append('--force')
-        if self.as_admin:
-            cmd.append('--as=system:admin')
+        if self.as_user is not None:
+            cmd.append('--as='+ self.as_user)
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
@@ -182,8 +182,8 @@ class OpenshiftRemoteTask(object):
 
             if self.force:
                 cmd.append('--ignore-not-found')
-            if self.as_admin:
-                cmd.append('--as=system:admin')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
 
         return self._execute(cmd)
 
@@ -205,8 +205,8 @@ class OpenshiftRemoteTask(object):
 
             if self.all:
                 cmd.append('--all-namespaces')
-            if self.as_admin:
-                cmd.append('--as=system:admin')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
 
 
         return cmd
@@ -241,8 +241,8 @@ class OpenshiftRemoteTask(object):
 
             if self.force:
                 cmd.append('--ignore-not-found')
-            if self.as_admin:
-                cmd.append('--as=system:admin')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
 
 
         return self._execute(cmd)
