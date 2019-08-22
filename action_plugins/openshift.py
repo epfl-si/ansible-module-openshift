@@ -90,7 +90,7 @@ options:
     required: false
     default: null
     descriprtion:
-      - A string to indicate user impersonation for specific actions on the kubernete cluster
+      - A string to indicate user impersonation for specific actions on the kubernetes cluster
   state:
     required: false
     choices: ['present', 'absent', 'latest', 'reloaded', 'stopped']
