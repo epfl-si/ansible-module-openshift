@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/python # -*- coding: utf-8 -*-
 
 """Back-end (remote) half of the "openshift" action plugin."""
 
@@ -9,6 +8,7 @@
 import json
 import re
 import types
+import sys
 
 from ansible.module_utils.basic import AnsibleModule
 try:
@@ -33,6 +33,7 @@ class OpenshiftRemoteTask(object):
             all=dict(default=False, type='bool'),
             log_level=dict(default=0, type='int'),
             state=dict(default='present', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
+            as_user=dict( type='str'),
         ),
         mutually_exclusive=[['filename', 'content']])
 
@@ -60,6 +61,7 @@ class OpenshiftRemoteTask(object):
         self.content = self.module.params.get('content', None)
         self.kind = self.module.params.get('kind')
         self.label = self.module.params.get('label')
+        self.as_user=self.module.params.get('as_user')
 
     def run(self):
         state = self.module.params.get('state')
@@ -104,6 +106,10 @@ class OpenshiftRemoteTask(object):
 
         cmd = ['apply']
 
+        if force:
+            cmd.append('--force')
+        if self.as_user is not None:
+            cmd.append('--as='+ self.as_user)
         if self.content is not None:
             cmd.extend(['-f', '-'])
             return self._execute(cmd, data=self.content)
@@ -156,6 +162,10 @@ class OpenshiftRemoteTask(object):
 
 
         cmd = ['apply']
+        if force:
+            cmd.append('--force')
+        if self.as_user is not None:
+            cmd.append('--as='+ self.as_user)
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
@@ -192,6 +202,8 @@ class OpenshiftRemoteTask(object):
 
             if self.force:
                 cmd.append('--ignore-not-found')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
 
         return self._execute(cmd)
 
@@ -213,6 +225,9 @@ class OpenshiftRemoteTask(object):
 
             if self.all:
                 cmd.append('--all-namespaces')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
+
 
         return cmd
 
@@ -246,6 +261,9 @@ class OpenshiftRemoteTask(object):
 
             if self.force:
                 cmd.append('--ignore-not-found')
+            if self.as_user is not None:
+                cmd.append('--as='+ self.as_user)
+
 
         return self._execute(cmd)
 
@@ -281,10 +299,11 @@ class OpenshiftRemoteTask(object):
         """
 
         def is_list(u):
-            return isinstance(u, types.ListType)
+            return isinstance(u, list)
 
         def is_dict(u):
-            return isinstance(u, types.DictType)
+            return isinstance(u, dict)
+
 
         if c_ansible == c_live:
             # Does small work of scalar types, including None; and if
