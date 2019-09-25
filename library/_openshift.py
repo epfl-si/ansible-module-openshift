@@ -106,7 +106,7 @@ class OpenshiftRemoteTask(object):
 
         cmd = ['apply']
 
-        if force:
+        if self.force:
             cmd.append('--force')
         if self.as_user is not None:
             cmd.append('--as='+ self.as_user)
@@ -162,7 +162,7 @@ class OpenshiftRemoteTask(object):
 
 
         cmd = ['apply']
-        if force:
+        if self.force:
             cmd.append('--force')
         if self.as_user is not None:
             cmd.append('--as='+ self.as_user)
