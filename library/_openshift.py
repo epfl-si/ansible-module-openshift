@@ -63,25 +63,24 @@ class OpenshiftRemoteTask(object):
         self.label = self.module.params.get('label')
         self.as_user=self.module.params.get('as_user')
 
+        self.result = dict(changed=False)
+
     def run(self):
         state = self.module.params.get('state')
         if state == 'present':
-            return self.create()
-
+            self.create()
         elif state == 'absent':
-            return self.delete()
-
+            self.delete()
         elif state == 'reloaded':
-            return self.replace()
-
+            self.replace()
         elif state == 'stopped':
-            return self.stop()
-
+            self.stop()
         elif state == 'latest':
-            return self.replace()
-
+            self.replace()
         else:
             raise AnsibleError('Unrecognized state %s.' % state)
+
+        self.module.exit_json(**self.result)
 
     def _execute(self, cmd, **kwargs):
         args = self.base_cmd + cmd
@@ -93,7 +92,8 @@ class OpenshiftRemoteTask(object):
         except Exception as exc:
             raise AnsibleError(
                 'error running oc (%s) command: %s' % (' '.join(args), str(exc)))
-        return self.module.exit_json(changed=True, rc=rc, stdout=out)
+        self.result.update(changed=True, rc=rc, stdout=out)
+        return
 
     def _execute_nofail(self, cmd):
         args = self.base_cmd + cmd
@@ -102,7 +102,7 @@ class OpenshiftRemoteTask(object):
 
     def create(self, check=True):
         if check and self.exists():
-            return self.module.exit_json(changed=False)
+            return
 
         cmd = ['apply']
 
@@ -141,7 +141,8 @@ class OpenshiftRemoteTask(object):
             diffs = list(self._find_diff_points(new_state, current_state))
             if not diffs:
                 # We don't need to patch
-                return self.module.exit_json(changed=False)
+                self.result.update(changed=False)
+                return
 
             # As per https://github.com/kubernetes/kubernetes/issues/70674,
             # updates that don't specify a metadata.resourceVersion undergo some
@@ -170,7 +171,7 @@ class OpenshiftRemoteTask(object):
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
-            return self._execute(cmd + ['-o', 'json'], data=self.content)
+            return self._execute(cmd, data=self.content)
         elif self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
             return self._execute(cmd)
@@ -180,7 +181,7 @@ class OpenshiftRemoteTask(object):
     def delete(self):
 
         if not self.force and not self.exists():
-            return self.module.exit_json(changed=False)
+            return
 
         cmd = ['delete']
 
@@ -239,7 +240,7 @@ class OpenshiftRemoteTask(object):
     def stop(self):
 
         if not self.force and not self.exists():
-            return self.module.exit_json(changed=False)
+            return 
 
         cmd = ['stop']
 
