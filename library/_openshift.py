@@ -138,8 +138,9 @@ class OpenshiftRemoteTask(object):
                 raise AnsibleError('Unable to apply --dry-run the provided configuration\n' + out + err)
             new_state = json.loads(out)
 
-            if self._is_same_configuration(new_state, current_state):
-                # ... We don't need to patch it
+            diffs = list(self._find_diff_points(new_state, current_state))
+            if not diffs:
+                # We don't need to patch
                 return self.module.exit_json(changed=False)
 
             # As per https://github.com/kubernetes/kubernetes/issues/70674,
@@ -169,7 +170,7 @@ class OpenshiftRemoteTask(object):
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
-            return self._execute(cmd, data=self.content)
+            return self._execute(cmd + ['-o', 'json'], data=self.content)
         elif self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
             return self._execute(cmd)
@@ -267,8 +268,8 @@ class OpenshiftRemoteTask(object):
 
         return self._execute(cmd)
 
-    def _is_same_configuration(self, c_ansible, c_live):
-        """True iff c_live is a faithful Kubernetes-side image of c_ansible.
+    def _find_diff_points(self, c_ansible, c_live, path=[]):
+        """Enumerate all points where `c_ansible` is *not* a superset of `c_live`.
 
         Args:
           c_live: A value or subtree of the YAML configuration
@@ -276,15 +277,11 @@ class OpenshiftRemoteTask(object):
           c_ansible: The corresponding value or subtree in the same tree
                   position inside the live object.
 
-        Used in "state: latest" mode; if this function returns true,
-        the update is skipped (i.e. the Ansible status will be a no-op
-        green).
-
         Scalar values are compared for strict identity. List values
         must match in length and each entry must match pairwise
-        (recursing through the _is_same_configuration method again).
+        (recursing through the _find_diff_points method again).
         Dict values must be a subset on c_ansible side (again,
-        recursing through _is_same_configuration for each key in
+        recursing through _find_diff_points for each key in
         c_ansible); unlike lists, extraneous keys in c_live are
         ignored, under the assumption that Kubernetes put them there
         (e.g. "state", "metadata").
@@ -296,8 +293,12 @@ class OpenshiftRemoteTask(object):
         playbook author with a way to ensure that some data structure
         (hopefully one that is *not* autocreated by Kubernetes) is
         set to empty.
-        """
 
+        Yields: (path, substruct_ansible, substruct_live) tuples
+          indicating points of discrepancy, where `path` is a list of
+          ints (when descending through a YAML list) and/or string
+          keys (when descending through a YAML dict)
+        """
         def is_list(u):
             return isinstance(u, list)
 
@@ -310,40 +311,45 @@ class OpenshiftRemoteTask(object):
             # complex data structures do happen to have perfect
             # equality, that's fine by us as well (and also very
             # likely faster to check than through recursion).
-            return True
-        if c_ansible == [] or c_ansible == {}:
+            return
+        elif c_ansible == [] or c_ansible == {}:
             # User has explicitly set an empty data structure in their
             # Ansible-side config. Interpret that as wanting the same
             # data structure to be empty on the live side as well.
-            return not c_live
+            if c_live:
+                yield (path, c_ansible, c_live)
 
-        if is_list(c_ansible) and is_list(c_live):
+        elif is_list(c_ansible) and is_list(c_live):
             if len(c_ansible) != len(c_live):
-                return False
-            for (c_a, c_l) in zip(c_ansible, c_live):
-                if not self._is_same_configuration(c_a, c_l):
-                    return False
-            return True
+                # No subsetting allowance for lists; length mismatch means
+                # a black mark.
+                yield (path, c_ansible, c_live)
+            else:
+                for (i, (c_a, c_l)) in enumerate(zip(c_ansible, c_live)):
+                    descend_path = path + [i]
+                    for y in self._find_diff_points(c_a, c_l, descend_path):
+                        yield y
         elif is_dict(c_ansible) and is_dict(c_live):
             for k in c_ansible.keys():
-                if not self._is_same_configuration(
-                        c_ansible[k],
-                        # Still recurse if the key does not exist in live.
-                        # self._is_same_configuration(c_ansible=...,
-                        # c_live=None) can indeed return True in case
-                        # c_ansible is an empty structure; see
-                        # previous comment.
-                        c_live.get(k, None)):
-                    return False
-            # Ignore any c_live keys that are missing in c_ansible;
-            # assume Kubernetes put them there automagically (e.g.
-            # "status"). If that is not the case and the operator
-            # wants to suppress the key, they can do so by passing an
-            # empty list or dict or a null value ("~" in YAML) for at
-            # least one Ansible run.
-            return True
+                descend_path = path + [k]
+                for y in self._find_diff_points(
+                    c_ansible[k],
+                    # Still go through with the recursion if `k` does
+                    # not exist in c_live, because we need to
+                    # distinguish whether c_ansible[k] is falsy as
+                    # well (see previous comment).
+                    c_live.get(k, None),
+                    descend_path):
+                  yield y
+            # Conversely, ignore any c_live keys that are missing in
+            # c_ansible; assume Kubernetes put them there
+            # automagically (e.g. "status"). If that is not the case
+            # and the operator wants to suppress the key, they can do
+            # so by passing an empty list or dict or a null value ("~"
+            # in YAML) for at least one Ansible run.
         else:
-            return False
+            # Simplest case comes last, e.g. two differing scalars
+            yield (path, c_ansible, c_live)
 
 
 if __name__ == '__main__':
