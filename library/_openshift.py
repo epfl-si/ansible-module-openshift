@@ -171,12 +171,14 @@ class OpenshiftRemoteTask(object):
 
         if self.content is not None:
             cmd.extend(['-f', '-'])
-            return self._execute(cmd, data=self.content)
+            self._execute(cmd, data=self.content)
         elif self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
-            return self._execute(cmd)
+            self._execute(cmd)
         else:
             raise AnsibleError('filename required to reload')
+
+        self.result.update(diffs=diffs)
 
     def delete(self):
 
