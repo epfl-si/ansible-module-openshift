@@ -161,7 +161,8 @@ class OpenshiftRemoteTask(object):
                     r'\1\2\3resourceVersion: "%s"\n\3\4' % re.escape(str(resource_version)),
                     self.content,
                     flags=re.MULTILINE|re.VERBOSE)
-
+        else:
+            diffs = []
 
         cmd = ['apply']
         if self.force:
@@ -178,7 +179,10 @@ class OpenshiftRemoteTask(object):
         else:
             raise AnsibleError('filename required to reload')
 
-        self.result.update(diffs=diffs)
+        if diffs:
+            self.result.update(diffs=diffs)
+        else:
+            self.result.update()
 
     def delete(self):
 
