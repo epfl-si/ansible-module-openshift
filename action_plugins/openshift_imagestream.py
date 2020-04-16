@@ -256,7 +256,7 @@ class ActionModule(ActionBase):
                 'type': 'ImageChange',
                 'imageChange': frm
             })
-        else:
+        elif 'dockerfile' in args:
             def from_line(line):
                 return re.match(r'FROM\s+(\S*)', line)
 
