@@ -86,8 +86,12 @@ class ActionModule(ActionBase):
         self.run.metadata = args.get('metadata')
         self.run.tag = args.get('tag', 'latest')
 
-        self._run_openshift_imagestream_action(args)
-        self._maybe_run_openshift_buildconfig_action(args)
+        frm = self._get_from_struct(args.get('from'))
+        if self._has_build_steps(args):
+            self._run_openshift_imagestream_action()
+            self._run_openshift_buildconfig_action(frm, args)
+        else:
+            self._run_openshift_imagestream_action(frm)
 
         return self.result
 
@@ -134,23 +138,25 @@ class ActionModule(ActionBase):
             shared_loader_obj=self._shared_loader_obj)
         self.result.update(openshift_action.run())
 
-    def _run_openshift_imagestream_action(self, args):
-        frm = self._get_from_struct(args)
-        if frm and frm['kind'] == 'DockerImage':
-            spec = {'tags': [{
-                'name': self.run.tag,
-                'from': frm,
-                'importPolicy': {'scheduled': True}
-            }]}
-        else:
-            # Note: tag tracking as described in
-            # https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/builds_and_image_streams.html#image-stream-tag
-            # is not implemented yet.
-            spec = None
+    def _run_openshift_imagestream_action(self, frm=None):
+        """Create/update/delete the ImageStream Kubernetes object."""
+        spec = None
+        if frm:
+            if frm['kind'] == 'DockerImage':
+                spec = {'tags': [{
+                    'name': self.run.tag,
+                    'from': frm,
+                    'importPolicy': {'scheduled': True}
+                }]}
+            else:
+                # Note: tag tracking as described in
+                # https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/builds_and_image_streams.html#image-stream-tag
+                # is not implemented yet.
+                pass
 
         self._run_openshift_action('ImageStream', spec)
 
-    def _maybe_run_openshift_buildconfig_action(self, args):
+    def _run_openshift_buildconfig_action(self, frm, args):
         """Create/update/delete the BuildConfig Kubernetes object.
 
         If the `openshift_imagestream` action doesn't just consist of
@@ -164,8 +170,6 @@ class ActionModule(ActionBase):
         possible.
         """
         source = self._get_source_stanza(args)
-        if not source:
-            return
 
         spec = {
             'source': source,
@@ -178,12 +182,8 @@ class ActionModule(ActionBase):
             'triggers': args.get('triggers', [])
         }
 
-        frm = self._get_from_struct(args)
-        if frm:
-            # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
-            spec['strategy']['dockerStrategy']['from'] = frm
-            # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html#image-change-triggers
-            spec['triggers'] += [{'type': 'ImageChange'}]
+        # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
+        spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec)
 
@@ -205,25 +205,26 @@ class ActionModule(ActionBase):
             except KeyError as e:
                 raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
 
-    def _get_from_struct(self, args):
+    def _has_build_steps(self, args):
+        return self._get_source_stanza(args) is not None
+
+    def _get_from_struct(self, from_arg):
         """Returns the "from" sub-structure to use for ImageStreams and BuildConfigs.
 
         Both are mutually exclusive in practice. A "from"
         sub-structure in an ImageStream means that that image is
         downloaded or copied, not built.
         """
-        if 'from' not in args:
-            return None
-        if not args['from']:
+        if not from_arg:
             return None
 
-        if not isinstance(args['from'], string_types):
-            return args['from']
+        if not isinstance(from_arg, string_types):
+            return from_arg
 
-        if "/" in args['from']:
+        if "/" in from_arg:
             return {
                 'kind': 'DockerImage',
-                'name': args['from']
+                'name': from_arg
             }
         else:
             # Assume the image is a "local" ImageStream (in
