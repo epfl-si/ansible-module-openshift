@@ -74,16 +74,18 @@ class ActionModule(ActionBase):
         args = self._task.args
 
         self.run = Run()
-        try:
-            self.run.name = args['name']
-            self.run.namespace = args['namespace']
-        except KeyError as e:
+        self.run.name = args.get('name', args.get('metadata', {}).get('name'))
+        if not self.run.name:
             raise AnsibleActionFail(
-                "Missing field `%s` in `openshift_imagestream`" % e.args[0])
+                "Missing field `name` in `openshift_imagestream`")
+        self.run.namespace = args.get('namespace', args.get('metadata', {}).get('namespace'))
+        if not self.run.name:
+            raise AnsibleActionFail(
+                "Missing field `namespace` in `openshift_imagestream`")
         self.run.tmp = tmp
         self.run.task_vars = task_vars
         self.run.state = args.get('state', 'latest')
-        self.run.metadata = args.get('metadata')
+        self.run.metadata = args.get('metadata', {})
         self.run.tag = args.get('tag', 'latest')
 
         frm = self._get_from_struct(args.get('from'))
@@ -102,7 +104,7 @@ class ActionModule(ActionBase):
         if self.result.get('failed'):
             return
 
-        metadata = deepcopy(self.run.metadata)
+        metadata = deepcopy(self.run.metadata or {})
         metadata['name'] = self.run.name
         metadata['namespace'] = self.run.namespace
 
