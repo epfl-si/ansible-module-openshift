@@ -19,14 +19,19 @@ description:
 """
 
 EXAMPLES = """
+- name: Just an ImageStream (leaving unspecified how images get into the stream)
+  openshift_imagestream:
+    name: sometthing-sometting
+    namespace: mynamespace
+    metadata:
+      i-like-to: move-it-move-it
+
 - name: An ImageStream that is simply downloaded from a public registry
   openshift_imagestream:
     name: origin-jenkins-base
     namespace: mynamespace
     tag: latest
     from: docker.quay.io/openshift/origin-jenkins-agent-base
-    metadata:
-      i-like-to: move-it-move-it
 
 - name: An ImageStream from Docker Hub
   openshift_imagestream:
@@ -39,6 +44,7 @@ EXAMPLES = """
     name: foo
     namespace: mynamespace
     from:
+      kind: ImageStreamTag
       imageStream: perl
       imageStreamTag: latest
       # Trigger will be added automatically on ImageChange of the above
@@ -200,7 +206,12 @@ class ActionModule(ActionBase):
                 raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
 
     def _get_from_struct(self, args):
-        """Returns the "from" sub-structure for ImageStreams and BuildConfigs."""
+        """Returns the "from" sub-structure to use for ImageStreams and BuildConfigs.
+
+        Both are mutually exclusive in practice. A "from"
+        sub-structure in an ImageStream means that that image is
+        downloaded or copied, not built.
+        """
         if 'from' not in args:
             return None
         if not args['from']:
