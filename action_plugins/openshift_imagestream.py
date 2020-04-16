@@ -179,7 +179,7 @@ class ActionModule(ActionBase):
                 'type': 'Docker',
                 'dockerStrategy': {'noCache': True, 'forcePull': True}
             },
-            'triggers': args.get('triggers', [])
+            'triggers': self._get_build_triggers(args)
         }
 
         # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
@@ -241,3 +241,9 @@ class ActionModule(ActionBase):
                 'name': '%s:%s' % tuple(from_parts),
                 'namespace': self.run.namespace
             }
+
+    def _get_build_triggers(self, args):
+        # TODO: when either _get_from_struct(), or parsing the inline
+        # Dockerfile, indicates that we are building from precursor
+        # ImageStream's, we should synthesize a trigger.
+        return args.get('triggers', [])
