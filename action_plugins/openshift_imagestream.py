@@ -3,6 +3,8 @@
 
 """Create ImageStreams (and their BuildConfigs) with less boilerplate."""
 
+import re
+
 from ansible.errors import AnsibleActionFail
 from ansible.module_utils.six import string_types
 from ansible.plugins.action import ActionBase
@@ -181,7 +183,7 @@ class ActionModule(ActionBase):
                 'type': 'Docker',
                 'dockerStrategy': {'noCache': True, 'forcePull': True}
             },
-            'triggers': self._get_build_triggers(args)
+            'triggers': self._get_build_triggers(frm, args)
         }
 
         # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
@@ -235,7 +237,7 @@ class ActionModule(ActionBase):
             # Docker Hub. Either pass a full Docker URL (e.g.
             # docker.io/busybox), or pas a data structure in
             # the 'from:' argument.
-            from_parts = args['from'].split(':', 2)
+            from_parts = from_arg.split(':', 2)
             if len(from_parts) < 2:
                 from_parts.append('latest')
             return {
@@ -244,8 +246,38 @@ class ActionModule(ActionBase):
                 'namespace': self.run.namespace
             }
 
-    def _get_build_triggers(self, args):
-        # TODO: when either _get_from_struct(), or parsing the inline
-        # Dockerfile, indicates that we are building from precursor
-        # ImageStream's, we should synthesize a trigger.
-        return args.get('triggers', [])
+    def _get_build_triggers(self, frm, args):
+        triggers = args.get('triggers', [])
+
+        if frm and frm.kind == 'ImageStream':
+            # Explicit "from" struct in task, with internal
+            # ImageStream; trigger on it.
+            triggers.append({
+                'type': 'ImageChange',
+                'imageChange': frm
+            })
+        else:
+            def from_line(line):
+                return re.match(r'FROM\s+(\S*)', line)
+
+            for from_uri in (from_line(l).group(1) for l in args['dockerfile'].split('\n')
+                             if from_line(l)):
+                is_local_image = re.match(
+                    r'docker-registry.default.svc(?:[:]\d+)?/([^/]*)/(.*)$',
+                    from_uri)
+                if is_local_image:
+                    imagestream_namespace = is_local_image.group(1)
+                    imagestream_name_and_tag = is_local_image.group(2)
+                    triggers.append({
+                        'type': 'ImageChange',
+                        'imageChange': {
+                            'from': {
+                                'kind': 'ImageStreamTag',
+                                'namespace': imagestream_namespace,
+                                'name': imagestream_name_and_tag
+                            }
+                        }
+                    })
+
+
+        return triggers
