@@ -63,7 +63,7 @@ class OpenshiftRemoteTask(object):
         self.label = self.module.params.get('label')
         self.as_user=self.module.params.get('as_user')
 
-        self.result = dict(changed=False)
+        self.result = dict(changed={})
 
     def run(self):
         state = self.module.params.get('state')
@@ -92,7 +92,7 @@ class OpenshiftRemoteTask(object):
         except Exception as exc:
             raise AnsibleError(
                 'error running oc (%s) command: %s' % (' '.join(args), str(exc)))
-        self.result.update(changed=True, rc=rc, stdout=out)
+        self.result.update(rc=rc, stdout=out)
         return
 
     def _execute_nofail(self, cmd):
@@ -138,11 +138,9 @@ class OpenshiftRemoteTask(object):
                 raise AnsibleError('Unable to apply --dry-run the provided configuration\n' + out + err)
             new_state = json.loads(out)
 
-            diffs = list(self._find_diff_points(new_state, current_state))
-            if not diffs:
-                # We don't need to patch
-                self.result.update(changed=False)
-                return
+            changed = { 'paths': list(self._find_diff_points(new_state, current_state)) }
+            if not changed['paths']:
+                return   # Nothing to do
 
             # As per https://github.com/kubernetes/kubernetes/issues/70674,
             # updates that don't specify a metadata.resourceVersion undergo some
@@ -162,7 +160,7 @@ class OpenshiftRemoteTask(object):
                     self.content,
                     flags=re.MULTILINE|re.VERBOSE)
         else:
-            diffs = []
+            changed = {'created': True}
 
         cmd = ['apply']
         if self.force:
@@ -179,10 +177,7 @@ class OpenshiftRemoteTask(object):
         else:
             raise AnsibleError('filename required to reload')
 
-        if diffs:
-            self.result.update(diffs=diffs)
-        else:
-            self.result.update()
+        self.result['changed'].update(changed)
 
     def delete(self):
 
