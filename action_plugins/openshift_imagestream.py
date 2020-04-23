@@ -249,7 +249,7 @@ class ActionModule(ActionBase):
     def _get_build_triggers(self, frm, args):
         triggers = args.get('triggers', [])
 
-        if frm and 'kind' in frm and frm['kind'] == 'ImageStream':
+        if frm and 'kind' in frm and frm['kind'] == 'ImageStreamTag':
             # Explicit "from" struct in task, with internal
             # ImageStream; trigger on it.
             triggers.append({
