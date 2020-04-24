@@ -254,7 +254,7 @@ class ActionModule(ActionBase):
             # ImageStream; trigger on it.
             triggers.append({
                 'type': 'ImageChange',
-                'imageChange': frm
+                'imageChange': { 'from': frm }
             })
         elif 'dockerfile' in args:
             def from_line(line):
