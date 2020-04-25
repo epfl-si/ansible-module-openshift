@@ -112,10 +112,10 @@ class OpenshiftRemoteTask(object):
             cmd.append('--as='+ self.as_user)
         if self.content is not None:
             cmd.extend(['-f', '-'])
-            return self._execute(cmd, data=self.content)
+            self._execute(cmd, data=self.content)
         elif self.filename:
             cmd.append('--filename=' + ','.join(self.filename))
-            return self._execute(cmd)
+            self._execute(cmd)
         else:
             raise AnsibleError('filename or content required')
 
@@ -208,7 +208,7 @@ class OpenshiftRemoteTask(object):
             if self.as_user is not None:
                 cmd.append('--as='+ self.as_user)
 
-        return self._execute(cmd)
+        self._execute(cmd)
 
     def _get_oc_flags(self):
         cmd = []
