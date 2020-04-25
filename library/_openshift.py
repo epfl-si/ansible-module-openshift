@@ -101,7 +101,7 @@ class OpenshiftRemoteTask(object):
         return rc == 0
 
     def create(self, check=True):
-        if check and self.exists():
+        if self.exists():
             return
 
         cmd = ['apply']
