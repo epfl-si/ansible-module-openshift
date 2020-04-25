@@ -118,6 +118,7 @@ class OpenshiftRemoteTask(object):
             self._execute(cmd)
         else:
             raise AnsibleError('filename or content required')
+        self.result.update({'changed': True})
 
     def replace(self):
         rc, out, err = self.module.run_command(
