@@ -132,7 +132,7 @@ class ActionModule(ActionBase):
         new_task = self._task.copy()
         new_task.args = args
 
-        openshift_action = self._shared_loader_obj.action_loader.get(
+        subaction = self._shared_loader_obj.action_loader.get(
             action_name,
             task=new_task,
             connection=self._connection,
@@ -140,7 +140,7 @@ class ActionModule(ActionBase):
             loader=self._loader,
             templar=self._templar,
             shared_loader_obj=self._shared_loader_obj)
-        self.result.update(openshift_action.run(task_vars=self.run.task_vars))
+        self.result.update(subaction.run(task_vars=self.run.task_vars))
 
     def _run_openshift_imagestream_action(self, frm=None):
         """Create/update/delete the ImageStream Kubernetes object."""
