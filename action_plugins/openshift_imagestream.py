@@ -140,7 +140,7 @@ class ActionModule(ActionBase):
             loader=self._loader,
             templar=self._templar,
             shared_loader_obj=self._shared_loader_obj)
-        self.result.update(openshift_action.run())
+        self.result.update(openshift_action.run(task_vars=self.run.task_vars))
 
     def _run_openshift_imagestream_action(self, frm=None):
         """Create/update/delete the ImageStream Kubernetes object."""
