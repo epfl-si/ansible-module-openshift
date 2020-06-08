@@ -186,13 +186,18 @@ class ActionModule(ActionBase):
             'triggers': self._get_build_triggers(frm, args)
         }
 
+        if 'strategy' in args:
+            deepmerge(args['strategy'], spec['strategy'])
+
         # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
         spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec)
 
     def _get_source_stanza(self, args):
-        if 'dockerfile' in args:
+        if 'source' in args:
+            return args['source']
+        elif 'dockerfile' in args:
             return {'type': 'Dockerfile', 'dockerfile': args['dockerfile']}
         elif 'git' in args:
             git = args['git']
@@ -281,3 +286,16 @@ class ActionModule(ActionBase):
 
 
         return triggers
+
+def deepmerge(source, destination):
+    """Found at https://stackoverflow.com/a/20666342/435004"""
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            deepmerge(value, node)
+        else:
+            destination[key] = value
+
+    return destination
+
