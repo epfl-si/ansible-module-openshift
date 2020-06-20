@@ -320,13 +320,13 @@ class OpenshiftRemoteTask(object):
             # Ansible-side config. Interpret that as wanting the same
             # data structure to be empty on the live side as well.
             if c_live:
-                yield (path, c_ansible, c_live)
+                yield (path, c_live, c_ansible)
 
         elif is_list(c_ansible) and is_list(c_live):
             if len(c_ansible) != len(c_live):
                 # No subsetting allowance for lists; length mismatch means
                 # a black mark.
-                yield (path, c_ansible, c_live)
+                yield (path, c_live, c_ansible)
             else:
                 for (i, (c_a, c_l)) in enumerate(zip(c_ansible, c_live)):
                     descend_path = path + [i]
@@ -352,7 +352,7 @@ class OpenshiftRemoteTask(object):
             # in YAML) for at least one Ansible run.
         else:
             # Simplest case comes last, e.g. two differing scalars
-            yield (path, c_ansible, c_live)
+            yield (path, c_live, c_ansible)
 
 
 if __name__ == '__main__':
