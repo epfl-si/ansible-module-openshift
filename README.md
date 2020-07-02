@@ -1,4 +1,4 @@
-`epfl_idevelop.ansible_module_openshift`
+`epfl_si.ansible_module_openshift`
 =========
 
 This role provides the `openshift` module, that you can use to create
@@ -40,7 +40,7 @@ Example Playbook
       roles:
          # Loads library/openshift.py to make it available to other plays;
          # does nothing else by itself
-         - { role: epfl-idevelop.openshift_module }
+         - { role: epfl_si.openshift_module }
    - hosts: all
      tasks:
      - name: "My ImageStream"

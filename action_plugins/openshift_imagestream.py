@@ -60,7 +60,7 @@ EXAMPLES = """
     name: foo
     namespace: mynamespace
     git:
-      repository: 'https://github.com/epfl-idevelop/wp-ops'
+      repository: 'https://github.com/epfl-si/wp-ops'
       ref: wwp-continuous-integration
       path: docker/jenkins
 """
