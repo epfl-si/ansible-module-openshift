@@ -210,6 +210,7 @@ class OpenshiftRemoteTask(object):
                 cmd.append('--as='+ self.as_user)
 
         self._execute(cmd)
+        self.result.update({'changed': True})
 
     def _get_oc_flags(self):
         cmd = []
