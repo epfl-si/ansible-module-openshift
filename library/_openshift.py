@@ -144,7 +144,7 @@ class OpenshiftRemoteTask(object):
             # As per https://github.com/kubernetes/kubernetes/issues/70674,
             # updates that don't specify a metadata.resourceVersion undergo some
             # kind of hazard of being rejected (depending on whether they have ever been
-            # edited with something `kubectl apply` or `oc apply`, IIUC).
+            # edited with something like `kubectl apply` or `oc apply`, IIUC).
             # So add a metadata.resourceVersion if we can find one.
             if 'metadata' in current_state and 'resourceVersion' in current_state['metadata']:
                 resource_version = current_state['metadata']['resourceVersion']
