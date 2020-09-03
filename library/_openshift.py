@@ -73,8 +73,6 @@ class OpenshiftRemoteTask(object):
             self.delete()
         elif state == 'reloaded':
             self.replace()
-        elif state == 'stopped':
-            self.stop()
         elif state == 'latest':
             self.replace()
         else:
@@ -239,38 +237,7 @@ class OpenshiftRemoteTask(object):
     def exists(self):
         return self._execute_nofail(['get', '--no-headers'] + self._get_oc_flags())
 
-    # TODO: This is currently unused, perhaps convert to 'scale' with a replicas param?
-    def stop(self):
 
-        if not self.force and not self.exists():
-            return 
-
-        cmd = ['stop']
-
-        if self.filename:
-            cmd.append('--filename=' + ','.join(self.filename))
-        else:
-            if not self.kind:
-                raise AnsibleError('resource required to stop without filename')
-
-            cmd.append(self.kind)
-
-            if self.name:
-                cmd.append(self.name)
-
-            if self.label:
-                cmd.append('--selector=' + self.label)
-
-            if self.all:
-                cmd.append('--all')
-
-            if self.force:
-                cmd.append('--ignore-not-found')
-            if self.as_user is not None:
-                cmd.append('--as='+ self.as_user)
-
-
-        return self._execute(cmd)
 
     def _find_diff_points(self, c_ansible, c_live, path=[]):
         """Enumerate all points where `c_ansible` is *not* a superset of `c_live`.
