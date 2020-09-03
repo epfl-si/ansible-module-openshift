@@ -39,6 +39,7 @@ class OpenshiftRemoteTask(object):
 
     def __init__(self):
         self.module = AnsibleModule(supports_check_mode=True, **self.module_spec)
+        self.supports_check_mode = True  # See _apply(), below
 
         self.oc = self.module.params.get('oc')
         if self.oc is None:
@@ -87,6 +88,10 @@ class OpenshiftRemoteTask(object):
         self.result.update(self._apply())
 
     def _apply(self):
+        if self.module.check_mode:
+            # Pretend we tried, and it worked
+            return dict(changed=True)
+
         args = ['apply']
         if self.force:
             args.append('--force')
@@ -137,8 +142,8 @@ class OpenshiftRemoteTask(object):
         # Now do it
         writeresult = self._apply()
         self.result.update(writeresult)
-        if writeresult['rc'] == 0:
-            # Success - Keep the diff for -v
+        if writeresult.get('rc', 0) == 0:
+            # Success (or check mode) - Keep the diff for -v
             self.result['changed'].update(changed)
 
     def delete(self):
