@@ -64,7 +64,7 @@ class OpenshiftRemoteTask(object):
         self.label = self.module.params.get('label')
         self.as_user=self.module.params.get('as_user')
 
-        self.result = dict(changed={})
+        self.result = {}
 
     def run(self):
         state = self.module.params.get('state')
@@ -115,8 +115,13 @@ class OpenshiftRemoteTask(object):
                 raise AnsibleError("Unable to apply --dry-run the provided configuration\nstdout:\n" + result['stdout'] + "\nstderr:\n" + result['stderr'])
             new_state = json.loads(result['stdout'])
 
-            changed = { 'paths': list(self._find_diff_points(new_state, current_state)) }
-            if not changed['paths']:
+            diffs = [
+                dict(before_header=".".join(diff_point[0]),
+                     after_header=".".join(diff_point[0]),
+                     before=str(diff_point[1]),
+                     after=str(diff_point[2]))
+                for diff_point in list(self._find_diff_points(new_state, current_state))]
+            if not diffs:
                 return   # Nothing to do
 
             # As per https://github.com/kubernetes/kubernetes/issues/70674,
@@ -137,14 +142,17 @@ class OpenshiftRemoteTask(object):
                     self.content,
                     flags=re.MULTILINE|re.VERBOSE)
         else:
-            changed = {'created': True}
+            diffs = [dict(
+                before_header="(non-existent)",
+                before="", after=self.content
+            )]
 
         # Now do it
         writeresult = self._apply()
         self.result.update(writeresult)
         if writeresult.get('rc', 0) == 0:
             # Success (or check mode) - Keep the diff for -v
-            self.result['changed'].update(changed)
+            self.result['diff'] = diffs
 
     def delete(self):
         if not self.force and not self.exists():
