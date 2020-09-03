@@ -38,7 +38,7 @@ class OpenshiftRemoteTask(object):
         mutually_exclusive=[['filename', 'content']])
 
     def __init__(self):
-        self.module = AnsibleModule(**self.module_spec)
+        self.module = AnsibleModule(supports_check_mode=True, **self.module_spec)
 
         self.oc = self.module.params.get('oc')
         if self.oc is None:
@@ -80,62 +80,35 @@ class OpenshiftRemoteTask(object):
 
         self.module.exit_json(**self.result)
 
-    def _execute(self, cmd, **kwargs):
-        args = self.base_cmd + cmd
-        try:
-            rc, out, err = self.module.run_command(args, **kwargs)
-            if rc != 0:
-                raise AnsibleError(
-                    'error running oc (%s) command (rc=%d), out=\'%s\', err=\'%s\'' % (' '.join(args), rc, out, err))
-        except Exception as exc:
-            raise AnsibleError(
-                'error running oc (%s) command: %s' % (' '.join(args), str(exc)))
-        self.result.update(rc=rc, stdout=out)
-        return
-
-    def _execute_nofail(self, cmd):
-        args = self.base_cmd + cmd
-        rc, out, err = self.module.run_command(args)
-        return rc == 0
-
     def create(self):
         if self.exists():
             return
 
-        cmd = ['apply']
+        self.result.update(self._apply())
 
+    def _apply(self):
+        args = ['apply']
         if self.force:
-            cmd.append('--force')
+            args.append('--force')
         if self.as_user is not None:
-            cmd.append('--as='+ self.as_user)
-        if self.content is not None:
-            cmd.extend(['-f', '-'])
-            self._execute(cmd, data=self.content)
-        elif self.filename:
-            cmd.append('--filename=' + ','.join(self.filename))
-            self._execute(cmd)
-        else:
-            raise AnsibleError('filename or content required')
-        self.result.update({'changed': True})
+            args.append('--as='+ self.as_user)
+        result = self._run_oc_and_pass_the_yaml(args)
+        result['changed'] = True
+        return result
 
     def replace(self):
-        rc, out, err = self.module.run_command(
-            self.base_cmd
-            + ['get', '--no-headers', '-o', 'json']
-            + self._get_oc_flags())
-        if not rc:
+        result = self._run_oc(['get', '--no-headers', '-o', 'json']
+                              + self._get_search_flags())
+        if not result['rc']:
             # Object already exists; figure out whether we need to patch it
-            current_state = json.loads(out)
-            cmd = self.base_cmd + ['create', '--dry-run', '-o', 'json']
-            if self.content is not None:
-                cmd.extend(['-f', '-'])
-                rc, out, err = self.module.run_command(cmd, data=self.content)
-            elif self.filename:
-                cmd.append('--filename=' + ','.join(self.filename))
-                rc, out, err = self.module.run_command(cmd)
-            if rc:
-                raise AnsibleError('Unable to apply --dry-run the provided configuration\n' + out + err)
-            new_state = json.loads(out)
+            current_state = json.loads(result['stdout'])
+
+            # Have the API server normalize the data, expand default values
+            # etc. for us, so that we get a clean diff
+            result = self._run_oc_and_pass_the_yaml(['create', '--dry-run', '-o', 'json'])
+            if result['rc']:
+                raise AnsibleError("Unable to apply --dry-run the provided configuration\nstdout:\n" + result['stdout'] + "\nstderr:\n" + result['stderr'])
+            new_state = json.loads(result['stdout'])
 
             changed = { 'paths': list(self._find_diff_points(new_state, current_state)) }
             if not changed['paths']:
@@ -161,30 +134,22 @@ class OpenshiftRemoteTask(object):
         else:
             changed = {'created': True}
 
-        cmd = ['apply']
-        if self.force:
-            cmd.append('--force')
-        if self.as_user is not None:
-            cmd.append('--as='+ self.as_user)
-
-        if self.content is not None:
-            cmd.extend(['-f', '-'])
-            self._execute(cmd, data=self.content)
-        elif self.filename:
-            cmd.append('--filename=' + ','.join(self.filename))
-            self._execute(cmd)
-        else:
-            raise AnsibleError('filename required to reload')
-
-        self.result['changed'].update(changed)
+        # Now do it
+        writeresult = self._apply()
+        self.result.update(writeresult)
+        if writeresult['rc'] == 0:
+            # Success - Keep the diff for -v
+            self.result['changed'].update(changed)
 
     def delete(self):
-
         if not self.force and not self.exists():
             return
 
-        self._run_oc(['delete'] + self._get_search_flags())
-        self.result.update({'changed': True})
+        result = self._run_oc(['delete'] + self._get_search_flags())
+        if result['rc'] == 0:
+            self.result.update({'changed': True})
+        else:
+            self.result.update(result)
 
     def _get_search_flags(self):
         """Return: The flags to pass to oc for exists() or delete() purposes."""
@@ -208,7 +173,6 @@ class OpenshiftRemoteTask(object):
             if self.as_user is not None:
                 args.append('--as='+ self.as_user)
 
-
         return args
 
     def exists(self):
@@ -222,6 +186,13 @@ class OpenshiftRemoteTask(object):
                 'error running command (%s): %s' % (' '.join(self.base_cmd + args), str(exc)))
         return dict(rc=rc, stdout=out, stderr=err)
 
+    def _run_oc_and_pass_the_yaml(self, args):
+        if self.content is not None:
+            return self._run_oc(args + ['-f', '-'], stdin=self.content)
+        elif self.filename:
+            return self._run_oc(args + '--filename=' + ','.join(self.filename))
+        else:
+            return AnsibleError('must set either content or filename')
 
     def _find_diff_points(self, c_ansible, c_live, path=[]):
         """Enumerate all points where `c_ansible` is *not* a superset of `c_live`.
