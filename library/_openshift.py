@@ -98,7 +98,7 @@ class OpenshiftRemoteTask(object):
         rc, out, err = self.module.run_command(args)
         return rc == 0
 
-    def create(self, check=True):
+    def create(self):
         if self.exists():
             return
 
