@@ -183,60 +183,44 @@ class OpenshiftRemoteTask(object):
         if not self.force and not self.exists():
             return
 
-        cmd = ['delete']
-
-        if self.filename:
-            cmd.append('--filename=' + ','.join(self.filename))
-        else:
-            if not self.kind:
-                raise AnsibleError('resource required to delete without filename')
-
-            cmd.append(self.kind)
-
-            if self.name:
-                cmd.append(self.name)
-
-            if self.label:
-                cmd.append('--selector=' + self.label)
-
-            if self.all:
-                cmd.append('--all')
-
-            if self.force:
-                cmd.append('--ignore-not-found')
-            if self.as_user is not None:
-                cmd.append('--as='+ self.as_user)
-
-        self._execute(cmd)
+        self._run_oc(['delete'] + self._get_search_flags())
         self.result.update({'changed': True})
 
-    def _get_oc_flags(self):
-        cmd = []
+    def _get_search_flags(self):
+        """Return: The flags to pass to oc for exists() or delete() purposes."""
+        args = []
         if self.filename:
-            cmd.append('--filename=' + ','.join(self.filename))
+            args.append('--filename=' + ','.join(self.filename))
         else:
             if not self.kind:
                 raise AnsibleError('resource required without filename')
 
-            cmd.append(self.kind)
+            args.append(self.kind)
 
             if self.name:
-                cmd.append(self.name)
+                args.append(self.name)
 
             if self.label:
-                cmd.append('--selector=' + self.label)
+                args.append('--selector=' + self.label)
 
             if self.all:
-                cmd.append('--all-namespaces')
+                args.append('--all-namespaces')
             if self.as_user is not None:
-                cmd.append('--as='+ self.as_user)
+                args.append('--as='+ self.as_user)
 
 
-        return cmd
+        return args
 
     def exists(self):
-        return self._execute_nofail(['get', '--no-headers'] + self._get_oc_flags())
+        return self._run_oc(['get', '--no-headers'] + self._get_search_flags())['rc'] == 0
 
+    def _run_oc(self, args, stdin=None):
+        try:
+            rc, out, err = self.module.run_command(self.base_cmd + args, data=stdin)
+        except Exception as exc:
+            raise AnsibleError(
+                'error running command (%s): %s' % (' '.join(self.base_cmd + args), str(exc)))
+        return dict(rc=rc, stdout=out, stderr=err)
 
 
     def _find_diff_points(self, c_ansible, c_live, path=[]):
