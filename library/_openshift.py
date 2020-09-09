@@ -116,8 +116,8 @@ class OpenshiftRemoteTask(object):
             new_state = json.loads(result['stdout'])
 
             diffs = [
-                dict(before_header=".".join(diff_point[0]),
-                     after_header=".".join(diff_point[0]),
+                dict(before_header=".".join(map(str, diff_point[0])),
+                     after_header=".".join(map(str, diff_point[0])),
                      before=str(diff_point[1]),
                      after=str(diff_point[2]))
                 for diff_point in list(self._find_diff_points(new_state, current_state))]
