@@ -93,6 +93,10 @@ class ActionModule(ActionBase):
         self.run.state = args.get('state', 'latest')
         self.run.metadata = args.get('metadata', {})
         self.run.tag = args.get('tag', 'latest')
+        self.run.webhook_secret_name = args.get('git', {}).get('webhook_secret_name', None)
+        self.run.webhook_secret = args.get('git', {}).get('webhook_secret', None)
+        if self.run.webhook_secret and not self.run.webhook_secret_name:
+            self.run.webhook_secret_name = '%s-webhook' % self.run.name
 
         frm = self._get_from_struct(args.get('from'))
         if self._has_build_steps(args):
@@ -101,10 +105,8 @@ class ActionModule(ActionBase):
         else:
             self._run_openshift_imagestream_action(frm)
 
-        webhook_secret_name = args.get('git', {}).get('webhook_secret_name', None)
-        webhook_secret = args.get('git', {}).get('webhook_secret', None)
-        if webhook_secret:
-            self._run_openshift_secret_action(webhook_secret, name=webhook_secret_name)
+        if self.run.webhook_secret:
+            self._run_openshift_secret_action()
 
         return self.result
 
@@ -203,12 +205,13 @@ class ActionModule(ActionBase):
 
         self._run_openshift_action('BuildConfig', spec)
 
-    def _run_openshift_secret_action(self, secret_value, name=None):
+    def _run_openshift_secret_action(self):
         """Create/update/delete the Secret Kubernetes object."""
-        spec = dict(data=dict(WebHookSecretKey=b64encode(secret_value)))
-        if not name:
-            name = '%s-webhook' % self.run.name
-        self._run_openshift_action('Secret', spec, name=name)
+
+        spec = dict(data=dict(WebHookSecretKey=b64encode(
+            self.run.webhook_secret.encode("UTF-8"))))
+        self._run_openshift_action('Secret', spec,
+                                   self.run.webhook_secret_name)
 
     def _get_source_stanza(self, args):
         if 'source' in args:
