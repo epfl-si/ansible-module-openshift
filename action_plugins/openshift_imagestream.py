@@ -308,6 +308,23 @@ class ActionModule(ActionBase):
                         }
                     })
 
+        # Build from webhook if so configured
+        # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html
+        git_repo = self._get_git_repository(args)
+        if self.run.webhook_secret:
+            if 'github' in git_repo:
+                type = 'GitHub'
+            elif 'gitlab' in git_repo:
+                type = 'GitLab'
+            elif 'bitbucket' in git_repo:
+                type = 'Bitbucket'
+            else:
+                type = 'Generic'
+            triggers.append({
+                'type': type,
+                type.lower(): dict(secretReference=dict(
+                    name=self.run.webhook_secret_name))
+            })
 
         return triggers
 
