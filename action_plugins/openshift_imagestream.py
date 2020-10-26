@@ -4,6 +4,7 @@
 """Create ImageStreams (and their BuildConfigs) with less boilerplate."""
 
 import re
+from base64 import b64encode
 
 from ansible.errors import AnsibleActionFail
 from ansible.module_utils.six import string_types
@@ -63,6 +64,9 @@ EXAMPLES = """
       repository: 'https://github.com/epfl-si/wp-ops'
       ref: wwp-continuous-integration
       path: docker/jenkins
+      webhook_secret: 123abc456    # Will be set as part of the URL GitHub-side,
+                                   # *not* what GitHub calls a secret
+      webhook_secret_name: I-can-choose-a-secret-name-here-otherwise-a-default-one-will-be-used
 """
 
 
@@ -97,9 +101,14 @@ class ActionModule(ActionBase):
         else:
             self._run_openshift_imagestream_action(frm)
 
+        webhook_secret_name = args.get('git', {}).get('webhook_secret_name', None)
+        webhook_secret = args.get('git', {}).get('webhook_secret', None)
+        if webhook_secret:
+            self._run_openshift_secret_action(webhook_secret, name=webhook_secret_name)
+
         return self.result
 
-    def _run_openshift_action(self, kind, spec=None):
+    def _run_openshift_action(self, kind, spec=None, name=None):
         # https://www.ansible.com/blog/how-to-extend-ansible-through-plugins
         # says to look into Ansible's lib/ansible/plugins/action/template.py,
         # which I did.
@@ -107,7 +116,7 @@ class ActionModule(ActionBase):
             return
 
         metadata = deepcopy(self.run.metadata or {})
-        metadata['name'] = self.run.name
+        metadata['name'] = name if name else self.run.name
         metadata['namespace'] = self.run.namespace
 
         if kind.lower() == "imagestream":
@@ -193,6 +202,13 @@ class ActionModule(ActionBase):
         spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec)
+
+    def _run_openshift_secret_action(self, secret_value, name=None):
+        """Create/update/delete the Secret Kubernetes object."""
+        spec = dict(data=dict(WebHookSecretKey=b64encode(secret_value)))
+        if not name:
+            name = '%s-webhook' % self.run.name
+        self._run_openshift_action('Secret', spec, name=name)
 
     def _get_source_stanza(self, args):
         if 'source' in args:
