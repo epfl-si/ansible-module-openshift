@@ -215,12 +215,12 @@ class ActionModule(ActionBase):
             return args['source']
         elif 'dockerfile' in args:
             return {'type': 'Dockerfile', 'dockerfile': args['dockerfile']}
-        elif 'git' in args:
+        elif self._get_git_repository(args):
             git = args['git']
             try:
                 retval = {
                     'type': 'Git',
-                    'git': {'uri': git['repository']}
+                    'git': {'uri': self._get_git_repository(args)}
                 }
                 if 'ref' in git:
                     retval['git']['ref'] = git['ref']
@@ -229,6 +229,11 @@ class ActionModule(ActionBase):
                 return retval
             except KeyError as e:
                 raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
+
+    def _get_git_repository (self, args):
+        if 'git' not in args:
+            return None
+        return args['git'].get('repository', None)
 
     def _has_build_steps(self, args):
         return self._get_source_stanza(args) is not None
