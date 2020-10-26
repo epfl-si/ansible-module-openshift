@@ -110,7 +110,7 @@ class ActionModule(ActionBase):
 
         return self.result
 
-    def _run_openshift_action(self, kind, spec=None, name=None):
+    def _run_openshift_action(self, kind, spec=None, data=None, name=None):
         # https://www.ansible.com/blog/how-to-extend-ansible-through-plugins
         # says to look into Ansible's lib/ansible/plugins/action/template.py,
         # which I did.
@@ -134,7 +134,9 @@ class ActionModule(ActionBase):
             'apiVersion': api_version,
             'metadata': metadata
         }
-        if spec:
+        if data:  # For secrets
+            args['data'] = data
+        if spec:  # For everything else
             args['spec'] = spec
 
         return self._run_action('openshift', args)
@@ -169,7 +171,7 @@ class ActionModule(ActionBase):
                 # is not implemented yet.
                 pass
 
-        self._run_openshift_action('ImageStream', spec)
+        self._run_openshift_action('ImageStream', spec=spec)
 
     def _run_openshift_buildconfig_action(self, frm, args):
         """Create/update/delete the BuildConfig Kubernetes object.
@@ -203,15 +205,15 @@ class ActionModule(ActionBase):
         # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
         spec['strategy']['dockerStrategy']['from'] = frm
 
-        self._run_openshift_action('BuildConfig', spec)
+        self._run_openshift_action('BuildConfig', spec=spec)
 
     def _run_openshift_secret_action(self):
         """Create/update/delete the Secret Kubernetes object."""
 
-        spec = dict(data=dict(WebHookSecretKey=b64encode(
-            self.run.webhook_secret.encode("UTF-8"))))
-        self._run_openshift_action('Secret', spec,
-                                   self.run.webhook_secret_name)
+        data = dict(WebHookSecretKey=b64encode(
+            self.run.webhook_secret.encode("UTF-8")))
+        self._run_openshift_action('Secret', data=data,
+                                   name=self.run.webhook_secret_name)
 
     def _get_source_stanza(self, args):
         if 'source' in args:
