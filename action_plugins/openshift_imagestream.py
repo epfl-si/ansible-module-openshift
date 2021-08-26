@@ -193,8 +193,8 @@ class ActionModule(ActionBase):
 
         The created BuildConfig always has "output:" -> "to:" set to
         the ImageStream and tag created by the same
-        `openshift_imagestream` action, and avoids caching wherever
-        possible.
+        `openshift_imagestream` action, and avoids the Docker
+        build cache on the node it runs on.
         """
         source = self._get_source_stanza(args)
 
@@ -204,7 +204,7 @@ class ActionModule(ActionBase):
                               'name': '%s:%s' % (self.run.name, self.run.tag)}},
             'strategy': {
                 'type': 'Docker',
-                'dockerStrategy': {'noCache': True, 'forcePull': True}
+                'dockerStrategy': {'noCache': True}
             },
             'triggers': self._get_build_triggers(frm, args)
         }
