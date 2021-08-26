@@ -48,6 +48,7 @@ EXAMPLES = """
     from:
       kind: DockerImage
       name: perl:buster
+    tag: buster
 
 - name: An ImageStream built from an inline Dockerfile
   openshift_imagestream:
