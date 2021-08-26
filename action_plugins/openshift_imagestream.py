@@ -24,28 +24,31 @@ description:
 EXAMPLES = """
 - name: Just an ImageStream (leaving unspecified how images get into the stream)
   openshift_imagestream:
-    name: sometthing-sometting
-    namespace: mynamespace
     metadata:
+      name: sometthing-sometting
+      namespace: mynamespace
       i-like-to: move-it-move-it
 
 - name: An ImageStream that is simply downloaded from a public registry
   openshift_imagestream:
-    name: origin-jenkins-base
-    namespace: mynamespace
+    metadata:
+      name: origin-jenkins-base
+      namespace: mynamespace
     tag: latest
     from: docker.quay.io/openshift/origin-jenkins-agent-base
 
 - name: An ImageStream from Docker Hub
   openshift_imagestream:
-    name: perl
-    namespace: mynamespace
+    metadata:
+      name: perl
+      namespace: mynamespace
     from: perl
 
 - name: An ImageStream built from an inline Dockerfile
   openshift_imagestream:
-    name: foo
-    namespace: mynamespace
+    metadata:
+      name: foo
+      namespace: mynamespace
     from:
       kind: ImageStreamTag
       imageStream: perl
@@ -58,8 +61,9 @@ EXAMPLES = """
 
 - name: An ImageStream built from a directory living in a Git depot
   openshift_imagestream:
-    name: foo
-    namespace: mynamespace
+    metadata:
+      name: foo
+      namespace: mynamespace
     git:
       repository: 'https://github.com/epfl-si/wp-ops'
       ref: wwp-continuous-integration
