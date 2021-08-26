@@ -210,10 +210,18 @@ class ActionModule(ActionBase):
         }
 
         if 'strategy' in args:
-            deepmerge(args['strategy'], spec['strategy'])
+            def strategies(d):
+                return set(k for k in d.keys() if k.endswith('Strategy'))
+            wantStrategy = strategies(args['strategy'])
+            gotStrategy = strategies(spec['strategy'])
+            if wantStrategy != gotStrategy:
+                spec['strategy'] = args['strategy']
+            else:
+                deepmerge(args['strategy'], spec['strategy'])
 
-        # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
-        spec['strategy']['dockerStrategy']['from'] = frm
+        if 'dockerStrategy' in spec['strategy']:
+            # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
+            spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec=spec)
 
