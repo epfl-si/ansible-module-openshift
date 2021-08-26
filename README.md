@@ -9,20 +9,19 @@ an `openshift` task:
   openshift:
     state: latest
     kind: ImageStream
-    name: "{{ image_name }}"
-    namespace: "{{ openshift_namespace }}"
-    content:
-      metadata:
-        labels:
-          app: MyApp
+    metadata:
+      name: "{{ image_name }}"
+      namespace: "{{ openshift_namespace }}
+      labels:
+        app: MyApp
 ```
 
 This ensures that the Kubernetes object of the provided `name` and
 `namespace` exists and (under `state: latest`) that the desired state
-(under `content:`) is a strict subset of the in-cluster state (as
-retrieved with `oc get -o yaml`). If that is not the case, the role
-applies the desired mutations (using `oc apply` if the object already
-exists, and `oc create` otherwise).
+(in the Ansible YAML structure) is a strict subset of the in-cluster
+state (as retrieved with `oc get -o yaml`). If that is not the case,
+the role applies the desired mutations (using `oc apply` if the object
+already exists, and `oc create` otherwise).
 
 Requirements
 ------------
@@ -47,12 +46,11 @@ Example Playbook
        openshift:
          state: latest
          kind: ImageStream
-         name: "{{ image_name }}"
-         namespace: "{{ openshift_namespace }}"
-         content:
-           metadata:
-             labels:
-               app: MyApp
+         metadata:
+           name: "{{ image_name }}"
+           namespace: "{{ openshift_namespace }}"
+           labels:
+             app: MyApp
 ```
 
 [See additional documentation in the source code](library/openshift.py)
