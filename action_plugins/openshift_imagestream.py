@@ -42,7 +42,13 @@ EXAMPLES = """
     metadata:
       name: perl
       namespace: mynamespace
-    from: perl
+    # In that case you need a structure for `from`, otherwise the action module
+    # will guess wrong (i.e. it will assume that we pull from a local image named
+    # `perl`):
+    from:
+      kind: DockerImage
+      name: perl
+      tag: latest   # Optional
 
 - name: An ImageStream built from an inline Dockerfile
   openshift_imagestream:
