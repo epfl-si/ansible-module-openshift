@@ -47,8 +47,7 @@ EXAMPLES = """
     # `perl`):
     from:
       kind: DockerImage
-      name: perl
-      tag: latest   # Optional
+      name: perl:buster
 
 - name: An ImageStream built from an inline Dockerfile
   openshift_imagestream:
