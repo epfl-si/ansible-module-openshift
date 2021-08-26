@@ -108,7 +108,7 @@ class ActionModule(ActionBase):
         if self.run.webhook_secret and not self.run.webhook_secret_name:
             self.run.webhook_secret_name = '%s-webhook' % self.run.name
 
-        frm = self._get_from_struct(args.get('from'))
+        frm = self._get_from_struct(args)
         if self._has_build_steps(args):
             self._run_openshift_imagestream_action()
             self._run_openshift_buildconfig_action(frm, args)
@@ -261,15 +261,30 @@ class ActionModule(ActionBase):
     def _has_build_steps(self, args):
         return self._get_source_stanza(args) is not None
 
-    def _get_from_struct(self, from_arg):
+    def _get_from_struct(self, args):
         """Returns the "from" sub-structure to use for ImageStreams and BuildConfigs.
 
         Both are mutually exclusive in practice. A "from"
         sub-structure in an ImageStream means that that image is
         downloaded or copied, not built.
         """
+        from_arg = args.get('from')
         if not from_arg:
-            return None
+            if 'dockerfile' in args:
+                local_froms = self._parse_local_from_lines(args['dockerfile'])
+                if len(local_froms) == 0:
+                    return None
+                elif len(local_froms) > 1:
+                    raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
+                else:
+                    local = local_froms[0]
+                    return {
+                        'kind': 'ImageStreamTag',
+                        'name': local.name_and_tag,
+                        'namespace': local.namespace
+                    }
+            else:
+                return None
 
         if not isinstance(from_arg, string_types):
             return from_arg
@@ -306,27 +321,17 @@ class ActionModule(ActionBase):
                 'imageChange': { 'from': frm }
             })
         elif 'dockerfile' in args:
-            def from_line(line):
-                return re.match(r'FROM\s+(\S*)', line)
-
-            for from_uri in (from_line(l).group(1) for l in args['dockerfile'].split('\n')
-                             if from_line(l)):
-                is_local_image = re.match(
-                    r'docker-registry.default.svc(?:[:]\d+)?/([^/]*)/(.*)$',
-                    from_uri)
-                if is_local_image:
-                    imagestream_namespace = is_local_image.group(1)
-                    imagestream_name_and_tag = is_local_image.group(2)
-                    triggers.append({
-                        'type': 'ImageChange',
-                        'imageChange': {
-                            'from': {
-                                'kind': 'ImageStreamTag',
-                                'namespace': imagestream_namespace,
-                                'name': imagestream_name_and_tag
-                            }
+            for local in self._parse_local_from_lines(args['dockerfile']):
+                triggers.append({
+                    'type': 'ImageChange',
+                    'imageChange': {
+                        'from': {
+                            'kind': 'ImageStreamTag',
+                            'namespace': local.namespace,
+                            'name': local.name_and_tag
                         }
-                    })
+                    }
+                })
 
         # Build from webhook if so configured
         # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/triggering_builds.html
@@ -347,6 +352,33 @@ class ActionModule(ActionBase):
             })
 
         return triggers
+
+    def _parse_local_from_lines (self, dockerfile_text):
+        class LocalImageInfo(object):
+            pass
+
+        def from_line(line):
+            return re.match(r'FROM\s+(\S*)', line)
+
+        retval = []
+        for from_uri in (from_line(l).group(1) for l in dockerfile_text.split('\n')
+                         if from_line(l)):
+            is_local_image = re.match(
+                r'docker-registry.default.svc(?:[:]\d+)?/([^/]*)/(.*)$',
+                from_uri)
+            if not is_local_image:
+                continue
+
+            local = LocalImageInfo()
+            local.namespace = is_local_image.group(1)
+            local.name_and_tag = is_local_image.group(2)
+            if ':' not in local.name_and_tag:
+                local.name_and_tag = '%s:latest' % local.name_and_tag
+            local.name, local.tag = local.name_and_tag.split(':', 1)
+
+            retval.append(local)
+        return retval
+        
 
 def deepmerge(source, destination):
     """Found at https://stackoverflow.com/a/20666342/435004"""
