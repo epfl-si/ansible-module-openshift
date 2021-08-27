@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.1.0 (Aug 27th, 2021)
+
+- Top-level `dockerfile:` (just below `openshift_imagestream:`) is now deprecated; we now prefer a `source:` → `dockerfile:` structure that mimics the BuildConfig type definition. (The older form is still supported, as is the automagic addition of `type: Dockerfile` if omitted)
+
 ## 1.0.1 (Aug 26th, 2021)
 
 - Support “`from:`-less” `openshift_imagestream`s (with a `dockerfile:` but no `from:`), also when the FROM line in the Dockerfile references a local OpenShift image e.g. `FROM docker-registry.default.svc:5000/namespace/name:tag`; in that case, synthesize a proper `from:` block (it being the only way that such a BuildConfig can possibly succeed, owing to considerations of authentication to the OpenShift registry)
