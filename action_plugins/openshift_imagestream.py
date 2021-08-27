@@ -60,9 +60,10 @@ EXAMPLES = """
       imageStream: perl
       imageStreamTag: latest
       # Trigger will be added automatically on ImageChange of the above
-    dockerfile: |
-      FROM perl
-      RUN cpan URI::escape
+    source:
+      dockerfile: |
+        FROM perl
+        RUN cpan URI::escape
     # Because there is a dockerfile, this one will have a BuildConfig as well
 
 - name: An ImageStream built from a directory living in a Git depot
@@ -234,10 +235,13 @@ class ActionModule(ActionBase):
                                    name=self.run.webhook_secret_name)
 
     def _get_source_stanza(self, args):
+        dockerfile_text = self._get_immediate_dockerfile(args)
         if 'source' in args:
+            if dockerfile_text is not None and 'type' not in args['source']:
+                args['source']['type'] = 'Dockerfile'
             return args['source']
-        elif 'dockerfile' in args:
-            return {'type': 'Dockerfile', 'dockerfile': args['dockerfile']}
+        elif dockerfile_text is not None:
+            return {'type': 'Dockerfile', 'dockerfile': dockerfile_text}
         elif self._get_git_repository(args):
             git = args['git']
             try:
@@ -252,6 +256,14 @@ class ActionModule(ActionBase):
                 return retval
             except KeyError as e:
                 raise AnsibleActionFail("Missing field `%s` under `git`" % e.args[0])
+
+    def _get_immediate_dockerfile (self, args):
+        if 'dockerfile' in args:
+            return args['dockerfile']
+        elif 'source' in args and 'dockerfile' in args['source']:
+            return args['source']['dockerfile']
+        else:
+            return None
 
     def _get_git_repository (self, args):
         if 'git' not in args:
@@ -270,8 +282,9 @@ class ActionModule(ActionBase):
         """
         from_arg = args.get('from')
         if not from_arg:
-            if 'dockerfile' in args:
-                local_froms = self._parse_local_from_lines(args['dockerfile'])
+            dockerfile_text = self._get_immediate_dockerfile(args)
+            if dockerfile_text is not None:
+                local_froms = self._parse_local_from_lines(dockerfile_text)
                 if len(local_froms) == 0:
                     return None
                 elif len(local_froms) > 1:
@@ -312,6 +325,7 @@ class ActionModule(ActionBase):
 
     def _get_build_triggers(self, frm, args):
         triggers = args.get('triggers', [])
+        dockerfile_text = self._get_immediate_dockerfile(args)
 
         if frm and 'kind' in frm and frm['kind'] == 'ImageStreamTag':
             # Explicit "from" struct in task, with internal
@@ -320,8 +334,8 @@ class ActionModule(ActionBase):
                 'type': 'ImageChange',
                 'imageChange': { 'from': frm }
             })
-        elif 'dockerfile' in args:
-            for local in self._parse_local_from_lines(args['dockerfile']):
+        elif dockerfile_text is not None:
+            for local in self._parse_local_from_lines(dockerfile_text):
                 triggers.append({
                     'type': 'ImageChange',
                     'imageChange': {
