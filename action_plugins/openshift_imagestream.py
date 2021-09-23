@@ -174,7 +174,8 @@ class ActionModule(ActionBase):
                 spec = {'tags': [{
                     'name': self.run.tag,
                     'from': frm,
-                    'importPolicy': {'scheduled': True}
+                    'importPolicy': {'scheduled': True},
+                    'referencePolicy': {'type': 'Local'}
                 }]}
             else:
                 # Note: tag tracking as described in
