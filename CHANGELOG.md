@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.2.0 (Sep 23rd, 2021)
+
+- Fix `source:`-less `openshift_imagestream`s. These were supposed to mirror e.g. Docker Hub, but that wasn't happening as experimentation suggests that `"referencePolicy": { "type": "Source" }` inhibits `"importPolicy": { "scheduled": True }`. Forcibly set `"referencePolicy": { "type": "Local" }` for such `openshift_imagestream`s.
+
 ## 1.1.0 (Aug 27th, 2021)
 
 - Top-level `dockerfile:` (just below `openshift_imagestream:`) is now deprecated; we now prefer a `source:` → `dockerfile:` structure that mimics the BuildConfig type definition. (The older form is still supported, as is the automagic addition of `type: Dockerfile` if omitted)
