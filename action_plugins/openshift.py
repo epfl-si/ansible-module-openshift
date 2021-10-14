@@ -15,6 +15,11 @@ try:
     from ansible.errors import AnsibleError
 except ImportError:
     AnsibleError = Exception
+try:
+    from ansible.template.native_helpers import NativeJinjaText
+except ImportError:
+    class NativeJinjaText:
+        pass
 
 # There is a name clash with a module in Ansible named "copy":
 deepcopy = __import__('copy').deepcopy
@@ -245,6 +250,7 @@ class ActionModule(ActionBase):
 
         dumper.add_representer(AnsibleUnicode, represent_string)
         dumper.add_representer(AnsibleUnsafeText, represent_string)
+        dumper.add_representer(NativeJinjaText, represent_string)
         try:
             dumper.open()
             dumper.represent(struct)
