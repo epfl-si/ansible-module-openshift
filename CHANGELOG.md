@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.4.0 (Oct 20th, 2021)
+
+- Support user-specified `openshift_imagestream:` → `spec:` (required for e.g. build resource limits)
+
 ## 1.3.0 (Oct 20th, 2021)
 
 - Do the right thing for `openshift_imagestream:` stanzas that are mirrors (i.e. with a `from:` line and nothing else)
