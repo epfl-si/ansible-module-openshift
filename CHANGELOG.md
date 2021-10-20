@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.3.0 (Oct 20th, 2021)
+
+- Do the right thing for `openshift_imagestream:` stanzas that are mirrors (i.e. with a `from:` line and nothing else)
+
 ## 1.2.0 (Sep 23rd, 2021)
 
 - Fix `source:`-less `openshift_imagestream`s. These were supposed to mirror e.g. Docker Hub, but that wasn't happening as experimentation suggests that `"referencePolicy": { "type": "Source" }` inhibits `"importPolicy": { "scheduled": True }`. Forcibly set `"referencePolicy": { "type": "Local" }` for such `openshift_imagestream`s.
