@@ -57,8 +57,8 @@ EXAMPLES = """
       namespace: mynamespace
     from:
       kind: ImageStreamTag
-      imageStream: perl
-      imageStreamTag: latest
+      name: "perl:buster"
+      namespace: my-namespace
       # Trigger will be added automatically on ImageChange of the above
     source:
       dockerfile: |
