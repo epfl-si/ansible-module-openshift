@@ -115,12 +115,14 @@ class OpenshiftRemoteTask(object):
                 raise AnsibleError("Unable to apply --dry-run the provided configuration\nstdout:\n" + result['stdout'] + "\nstderr:\n" + result['stderr'])
             new_state = json.loads(result['stdout'])
 
+            raw_diffs = [d for d in self._find_diff_points(new_state, current_state)
+                         if not self._is_diff_irrelevant(d, current_state)]
             diffs = [
                 dict(before_header=".".join(map(str, diff_point[0])),
                      after_header=".".join(map(str, diff_point[0])),
                      before=str(diff_point[1]),
                      after=str(diff_point[2]))
-                for diff_point in list(self._find_diff_points(new_state, current_state))]
+                for diff_point in raw_diffs]
             if not diffs:
                 return   # Nothing to do
 
@@ -290,6 +292,21 @@ class OpenshiftRemoteTask(object):
             # Simplest case comes last, e.g. two differing scalars
             yield (path, c_live, c_ansible)
 
+    def _is_diff_irrelevant(self, diff, current_state):
+        """True iff this diff should be ignored.
+
+        We ignore diffs when the `image` of a container is being set by
+        OpenShift itself (e.g. from an ImageStream and a trigger).
+        """
+        where, before, after = diff
+
+        if len(where) > 3 and where[-3] == 'containers' and where[-1] == 'image':
+            if '@sha256:' in before and not '@sha256:' in after:
+                # We could be pickier here, and check whether current_state has a
+                # matching trigger.
+                return True
+
+        return False
 
 if __name__ == '__main__':
     OpenshiftRemoteTask().run()
