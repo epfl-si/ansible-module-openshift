@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.6.0 (Nov 4th, 2021)
+
+- `state:` now defaults to `latest` (rather than `present`) in `openshift:` and `openshift_imagestream:` tasks
+
 ## 1.5.0 (Oct 26th, 2021)
 
 - Fix nevergreen on pod images that get rewritten under the influence of OpenShift triggers
