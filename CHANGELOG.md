@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.7.0 (Nov 4th, 2021)
+
+- Remove default `dockerStrategy:` → `noCache: true` — Meaning that (newly-created) BuildConfig objects will start using the Docker layer cache, as they should
+
 ## 1.6.0 (Nov 4th, 2021)
 
 - `state:` now defaults to `latest` (rather than `present`) in `openshift:` and `openshift_imagestream:` tasks
