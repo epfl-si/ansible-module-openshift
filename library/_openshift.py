@@ -32,7 +32,7 @@ class OpenshiftRemoteTask(object):
             force=dict(default=False, type='bool'),
             all=dict(default=False, type='bool'),
             log_level=dict(default=0, type='int'),
-            state=dict(default='present', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
+            state=dict(default='latest', choices=['present', 'absent', 'latest', 'reloaded', 'stopped']),
             as_user=dict( type='str'),
         ),
         mutually_exclusive=[['filename', 'content']])
