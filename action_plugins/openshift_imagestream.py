@@ -213,7 +213,7 @@ class ActionModule(ActionBase):
                               'name': '%s:%s' % (self.run.name, self.run.tag)}},
             'strategy': {
                 'type': 'Docker',
-                'dockerStrategy': {'noCache': True}
+                'dockerStrategy': {}
             },
             'triggers': self._get_build_triggers(frm, args)
         }
