@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.7.1 (Nov 4th, 2021)
+
+- Accept `branch:` or `tag:` as aliases for `ref:` under `git:` dict
+
 ## 1.7.0 (Nov 4th, 2021)
 
 - Remove default `dockerStrategy:` → `noCache: true` — Meaning that (newly-created) BuildConfig objects will start using the Docker layer cache, as they should
