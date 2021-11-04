@@ -266,8 +266,10 @@ class ActionModule(ActionBase):
                     'type': 'Git',
                     'git': {'uri': self._get_git_repository(args)}
                 }
-                if 'ref' in git:
-                    retval['git']['ref'] = git['ref']
+                for ref_alias in ['ref', 'branch', 'tag']:
+                    if ref_alias in git:
+                        retval['git']['ref'] = git[ref_alias]
+                        break
                 if 'path' in git:
                     retval['contextDir'] = git['path']
                 return retval
