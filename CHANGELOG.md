@@ -1,8 +1,12 @@
 # 1.x release cycle
 
-## 1.7.2 (Fev 3th, 2023)
+## 1.7.3 (Fev 3th, 2023)
 
 - Bugfix: when setting both `from: ~` and `strategy:` → `dockerStrategy:` (which might happen e.g. because of a `with_items` loop), don't pollute the latter with the former — In other words, ignore `from:` when not set.
+
+## 1.7.2 (same day)
+
+Same except the fix didn't actually work, because of a silly operator precedence issue ☹
 
 ## 1.7.1 (Nov 4th, 2021)
 
