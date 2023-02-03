@@ -237,7 +237,7 @@ class ActionModule(ActionBase):
             else:
                 spec['strategy'] = args['strategy']
 
-        if 'dockerStrategy' in spec['strategy']:
+        if 'dockerStrategy' in spec['strategy'] and frm is not None:
             # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
             spec['strategy']['dockerStrategy']['from'] = frm
 
