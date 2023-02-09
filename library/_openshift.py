@@ -1,4 +1,5 @@
-#!/usr/bin/python # -*- coding: utf-8 -*-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 """Back-end (remote) half of the "openshift" action plugin."""
 
