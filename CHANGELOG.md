@@ -1,6 +1,10 @@
 # 1.x release cycle
 
-## 1.7.3 (Fev 3th, 2023)
+## 1.7.3 (Feb 9th, 2023)
+
+- Bugfix: `_openshift.py` file header was defective
+
+## 1.7.3 (Feb 3th, 2023)
 
 - Bugfix: when setting both `from: ~` and `strategy:` → `dockerStrategy:` (which might happen e.g. because of a `with_items` loop), don't pollute the latter with the former — In other words, ignore `from:` when not set.
 
