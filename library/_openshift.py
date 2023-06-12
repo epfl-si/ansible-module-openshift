@@ -214,10 +214,10 @@ class OpenshiftRemoteTask(object):
         """Enumerate all points where `c_ansible` is *not* a superset of `c_live`.
 
         Args:
-          c_live: A value or subtree of the YAML configuration
-                  stored in Ansible
           c_ansible: The corresponding value or subtree in the same tree
                   position inside the live object.
+          c_live: A value or subtree of the YAML configuration
+                  stored in Ansible
 
         Scalar values are compared for strict identity. List values
         must match in length and each entry must match pairwise
@@ -259,13 +259,13 @@ class OpenshiftRemoteTask(object):
             # Ansible-side config. Interpret that as wanting the same
             # data structure to be empty on the live side as well.
             if c_live:
-                yield (path, c_live, c_ansible)
+                yield (path, c_ansible, c_live)
 
         elif is_list(c_ansible) and is_list(c_live):
             if len(c_ansible) != len(c_live):
                 # No subsetting allowance for lists; length mismatch means
                 # a black mark.
-                yield (path, c_live, c_ansible)
+                yield (path, c_ansible, c_live)
             else:
                 for (i, (c_a, c_l)) in enumerate(zip(c_ansible, c_live)):
                     descend_path = path + [i]
@@ -291,7 +291,7 @@ class OpenshiftRemoteTask(object):
             # in YAML) for at least one Ansible run.
         else:
             # Simplest case comes last, e.g. two differing scalars
-            yield (path, c_live, c_ansible)
+            yield (path, c_ansible, c_live)
 
     def _is_diff_irrelevant(self, diff, current_state):
         """True iff this diff should be ignored.
