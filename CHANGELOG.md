@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.8.0 (June 12th, 2023)
+
+- Bugfix: Ansible introduced yet another string wrapper class in its Jinja fixture, which needs a special case passthrough for YAML serialization
+
 ## 1.7.3 (Feb 9th, 2023)
 
 - Bugfix: `_openshift.py` file header was defective
