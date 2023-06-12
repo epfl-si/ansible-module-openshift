@@ -11,6 +11,12 @@ from ansible.module_utils.six import string_types
 from ansible.plugins.action import ActionBase
 from ansible.parsing.yaml.objects import AnsibleUnicode
 from ansible.utils.unsafe_proxy import AnsibleUnsafeText
+
+try:
+    from ansible.utils.unsafe_proxy import NativeJinjaUnsafeText
+except ImportError:
+    NativeJinjaUnsafeText = None
+
 try:
     from ansible.errors import AnsibleError
 except ImportError:
@@ -251,6 +257,8 @@ class ActionModule(ActionBase):
         dumper.add_representer(AnsibleUnicode, represent_string)
         dumper.add_representer(AnsibleUnsafeText, represent_string)
         dumper.add_representer(NativeJinjaText, represent_string)
+        if NativeJinjaUnsafeText is not None:
+            dumper.add_representer(NativeJinjaUnsafeText, represent_string)
         try:
             dumper.open()
             dumper.represent(struct)
