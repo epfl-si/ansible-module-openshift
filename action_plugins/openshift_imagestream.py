@@ -323,10 +323,8 @@ class ActionModule(ActionBase):
             return {}
 
         local_froms = self._parse_local_from_lines(dockerfile_text)
-        if len(local_froms) == 0:
+        if len(local_froms) != 1:
             return {}
-        elif len(local_froms) > 1:
-            raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
 
         local = local_froms[0]
         return {
