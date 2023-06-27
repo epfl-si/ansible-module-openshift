@@ -211,7 +211,6 @@ class ActionModule(ActionBase):
         `openshift_imagestream` action, and avoids the Docker
         build cache on the node it runs on.
         """
-        frm = self._get_buildconfig_from(args)
         source = self._get_source_stanza(args)
 
         spec = {
@@ -222,7 +221,7 @@ class ActionModule(ActionBase):
                 'type': 'Docker',
                 'dockerStrategy': {}
             },
-            'triggers': self._get_build_triggers(frm, args)
+            'triggers': self._get_build_triggers(args)
         }
 
         if 'spec' in args:
@@ -244,9 +243,11 @@ class ActionModule(ActionBase):
             else:
                 spec['strategy'] = args['strategy']
 
-        if ('dockerStrategy' in spec['strategy']) and (frm is not None):
-            # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
-            spec['strategy']['dockerStrategy']['from'] = frm
+        if 'dockerStrategy' in spec['strategy']:
+            frm = self._get_buildconfig_from(args)
+            if frm is not None:
+                # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
+                spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec=spec)
 
@@ -360,11 +361,11 @@ class ActionModule(ActionBase):
                 'namespace': self.run.namespace
             }
 
-    def _get_build_triggers(self, frm, args):
+    def _get_build_triggers(self, args):
         triggers = args.get('triggers', [])
         dockerfile_text = self._get_immediate_dockerfile(args)
 
-        if frm and 'kind' in frm and frm['kind'] == 'ImageStreamTag':
+        if args.get('from', {}).get('kind', {}) == 'ImageStreamTag':
             # Explicit "from" struct in task, with internal
             # ImageStream; trigger on it.
             triggers.append({
