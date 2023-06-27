@@ -219,7 +219,7 @@ class ActionModule(ActionBase):
                               'name': '%s:%s' % (self.run.name, self.run.tag)}},
             'strategy': {
                 'type': 'Docker',
-                'dockerStrategy': {}
+                'dockerStrategy': self._get_buildconfig_dockerstrategy(args)
             },
             'triggers': self._get_build_triggers(args)
         }
@@ -242,13 +242,6 @@ class ActionModule(ActionBase):
                 deepmerge(args['strategy'], spec['strategy'])
             else:
                 spec['strategy'] = args['strategy']
-
-        if ('dockerStrategy' in spec['strategy']
-                and 'from' not in spec['strategy']['dockerStrategy']):
-            frm = self._get_buildconfig_from(args)
-            if frm is not None:
-                # https://docs.openshift.com/container-platform/3.11/dev_guide/builds/index.html#defining-a-buildconfig
-                spec['strategy']['dockerStrategy']['from'] = frm
 
         self._run_openshift_action('BuildConfig', spec=spec)
 
@@ -311,30 +304,37 @@ class ActionModule(ActionBase):
         else:
             return None
 
-    def _get_buildconfig_from (self, args):
+    def _get_buildconfig_dockerstrategy (self, args):
         """
-        :return: the "from" sub-structure to use for a BuildConfig.
+        :return: the default "dockerStrategy" sub-structure to use for a BuildConfig.
+
+        The return value is either the empty dict or a dict with only the `from` key,
+        which OpenShift will use to rewrite the (first) `FROM` line in the Dockerfile
+        as per § .spec.strategy.dockerStrategy of
+        https://docs.openshift.com/container-platform/3.11/rest_api/build_openshift_io/buildconfig-build-openshift-io-v1.html
         """
         from_arg = args.get('from')
         if from_arg:
-            return self._to_from_struct(from_arg)
+            return { 'from': self._to_from_struct(from_arg) }
 
         # Take a guess from first FROM line in immediate Dockerfile
         dockerfile_text = self._get_immediate_dockerfile(args)
         if dockerfile_text is None:
-            return None
+            return {}
 
         local_froms = self._parse_local_from_lines(dockerfile_text)
         if len(local_froms) == 0:
-            return None
+            return {}
         elif len(local_froms) > 1:
             raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
 
         local = local_froms[0]
         return {
-            'kind': 'ImageStreamTag',
-            'name': local.name_and_tag,
-            'namespace': local.namespace
+            'from': {
+                'kind': 'ImageStreamTag',
+                'name': local.name_and_tag,
+                'namespace': local.namespace
+            }
         }
 
     def _to_from_struct (self, from_arg):
