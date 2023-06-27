@@ -331,8 +331,8 @@ class ActionModule(ActionBase):
             # same namespace). Note: that won't work if what
             # you wanted was to e.g. pull "busybox" from the
             # Docker Hub. Either pass a full Docker URL (e.g.
-            # docker.io/busybox), or pas a data structure in
-            # the 'from:' argument.
+            # docker.io/library/busybox), or pas a data
+            # structure in the 'from:' argument.
             from_parts = from_arg.split(':', 2)
             if len(from_parts) < 2:
                 from_parts.append('latest')
