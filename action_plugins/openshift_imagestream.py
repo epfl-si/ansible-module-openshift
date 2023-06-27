@@ -319,21 +319,21 @@ class ActionModule(ActionBase):
 
         # Take a guess from first FROM line in immediate Dockerfile
         dockerfile_text = self._get_immediate_dockerfile(args)
-        if dockerfile_text is not None:
-            local_froms = self._parse_local_from_lines(dockerfile_text)
-            if len(local_froms) == 0:
-                return None
-            elif len(local_froms) > 1:
-                raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
-            else:
-                local = local_froms[0]
-                return {
-                    'kind': 'ImageStreamTag',
-                    'name': local.name_and_tag,
-                    'namespace': local.namespace
-                }
-        else:
+        if dockerfile_text is None:
             return None
+
+        local_froms = self._parse_local_from_lines(dockerfile_text)
+        if len(local_froms) == 0:
+            return None
+        elif len(local_froms) > 1:
+            raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
+
+        local = local_froms[0]
+        return {
+            'kind': 'ImageStreamTag',
+            'name': local.name_and_tag,
+            'namespace': local.namespace
+        }
 
     def _to_from_struct (self, from_arg):
         if not isinstance(from_arg, string_types):
