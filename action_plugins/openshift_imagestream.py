@@ -116,12 +116,11 @@ class ActionModule(ActionBase):
         if self.run.webhook_secret and not self.run.webhook_secret_name:
             self.run.webhook_secret_name = '%s-webhook' % self.run.name
 
-        frm = self._get_from_struct(args)
         if self._has_build_steps(args):
             self._run_openshift_imagestream_action()
-            self._run_openshift_buildconfig_action(frm, args)
+            self._run_openshift_buildconfig_action(args)
         else:
-            self._run_openshift_imagestream_action(frm)
+            self._run_openshift_imagestream_action(args)
 
         if self.run.webhook_secret:
             self._run_openshift_secret_action()
@@ -173,11 +172,18 @@ class ActionModule(ActionBase):
             shared_loader_obj=self._shared_loader_obj)
         self.result.update(subaction.run(task_vars=self.run.task_vars))
 
-    def _run_openshift_imagestream_action(self, frm=None):
-        """Create/update/delete the ImageStream Kubernetes object."""
+    def _run_openshift_imagestream_action (self, args_for_from=None):
+        """Create/update/delete the ImageStream Kubernetes object.
+
+        :param dict args_for_from: Either the task args if we want the ImageStream
+                                   to download something, or None if we don't (i.e.
+                                   when the ImageStream is to be built out of a
+                                   companion BuildConfig object)
+        """
         spec = None
-        if frm:
-            if frm['kind'] == 'DockerImage':
+        if args_for_from:
+            frm = self._get_imagestream_from(args_for_from)
+            if frm and frm['kind'] == 'DockerImage':
                 spec = {'tags': [{
                     'name': self.run.tag,
                     'from': frm,
@@ -192,7 +198,7 @@ class ActionModule(ActionBase):
 
         self._run_openshift_action('ImageStream', spec=spec)
 
-    def _run_openshift_buildconfig_action(self, frm, args):
+    def _run_openshift_buildconfig_action (self, args):
         """Create/update/delete the BuildConfig Kubernetes object.
 
         If the `openshift_imagestream` action doesn't just consist of
@@ -205,6 +211,7 @@ class ActionModule(ActionBase):
         `openshift_imagestream` action, and avoids the Docker
         build cache on the node it runs on.
         """
+        frm = self._get_buildconfig_from(args)
         source = self._get_source_stanza(args)
 
         spec = {
@@ -292,13 +299,19 @@ class ActionModule(ActionBase):
     def _has_build_steps(self, args):
         return self._get_source_stanza(args) is not None
 
-    def _get_from_struct(self, args):
-        """Returns the "from" sub-structure to use for ImageStreams and BuildConfigs.
-
-        Both are mutually exclusive in practice. A "from"
-        sub-structure in an ImageStream means that that image is
-        downloaded or copied, not built.
+    def _get_imagestream_from (self, args):
         """
+        :return: the "from" sub-structure to use for a downloaded ImageStream.
+        """
+        return self._get_from_struct(args) # TODO: split code properly
+
+    def _get_buildconfig_from (self, args):
+        """
+        :return: the "from" sub-structure to use for a BuildConfig.
+        """
+        return self._get_from_struct(args) # TODO: split code properly
+
+    def _get_from_struct(self, args):
         from_arg = args.get('from')
         if not from_arg:
             dockerfile_text = self._get_immediate_dockerfile(args)
