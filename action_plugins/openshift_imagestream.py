@@ -303,34 +303,39 @@ class ActionModule(ActionBase):
         """
         :return: the "from" sub-structure to use for a downloaded ImageStream.
         """
-        return self._get_from_struct(args) # TODO: split code properly
+        from_arg = args.get('from')
+        if from_arg:
+            return self._to_from_struct(from_arg)
+        else:
+            return None
 
     def _get_buildconfig_from (self, args):
         """
         :return: the "from" sub-structure to use for a BuildConfig.
         """
-        return self._get_from_struct(args) # TODO: split code properly
-
-    def _get_from_struct(self, args):
         from_arg = args.get('from')
-        if not from_arg:
-            dockerfile_text = self._get_immediate_dockerfile(args)
-            if dockerfile_text is not None:
-                local_froms = self._parse_local_from_lines(dockerfile_text)
-                if len(local_froms) == 0:
-                    return None
-                elif len(local_froms) > 1:
-                    raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
-                else:
-                    local = local_froms[0]
-                    return {
-                        'kind': 'ImageStreamTag',
-                        'name': local.name_and_tag,
-                        'namespace': local.namespace
-                    }
-            else:
-                return None
+        if from_arg:
+            return self._to_from_struct(from_arg)
 
+        # Take a guess from first FROM line in immediate Dockerfile
+        dockerfile_text = self._get_immediate_dockerfile(args)
+        if dockerfile_text is not None:
+            local_froms = self._parse_local_from_lines(dockerfile_text)
+            if len(local_froms) == 0:
+                return None
+            elif len(local_froms) > 1:
+                raise AnsibleActionFail("Cannot guess `from:` structure from multi-stage Dockerfile; please provide an explicit one.")
+            else:
+                local = local_froms[0]
+                return {
+                    'kind': 'ImageStreamTag',
+                    'name': local.name_and_tag,
+                    'namespace': local.namespace
+                }
+        else:
+            return None
+
+    def _to_from_struct (self, from_arg):
         if not isinstance(from_arg, string_types):
             return from_arg
 
