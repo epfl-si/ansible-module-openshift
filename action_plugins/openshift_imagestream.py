@@ -98,12 +98,16 @@ class ActionModule(ActionBase):
         args = self._task.args
 
         self.run = Run()
-        self.run.name = args.get('name', args.get('metadata', {}).get('name'))
+        self.run.name = self._walk_args('metadata', 'name')
+        if not self.run.name:
+            self;run.name = self._walk_args('name')
         if not self.run.name:
             raise AnsibleActionFail(
                 "Missing field `name` in `openshift_imagestream`")
-        self.run.namespace = args.get('namespace', args.get('metadata', {}).get('namespace'))
-        if not self.run.name:
+        self.run.namespace =  self._walk_args('metadata', 'namespace')
+        if not self.run.namespace:
+            self.run.namespace = self._walk_args('namespace')
+        if not self.run.namespace:
             raise AnsibleActionFail(
                 "Missing field `namespace` in `openshift_imagestream`")
         self.run.tmp = tmp
@@ -111,8 +115,8 @@ class ActionModule(ActionBase):
         self.run.state = args.get('state', 'latest')
         self.run.metadata = args.get('metadata', {})
         self.run.tag = args.get('tag', 'latest')
-        self.run.webhook_secret_name = args.get('git', {}).get('webhook_secret_name', None)
-        self.run.webhook_secret = args.get('git', {}).get('webhook_secret', None)
+        self.run.webhook_secret_name = self._walk_args('git', 'webhook_secret_name')
+        self.run.webhook_secret = self._walk_args('git', 'webhook_secret')
         if self.run.webhook_secret and not self.run.webhook_secret_name:
             self.run.webhook_secret_name = '%s-webhook' % self.run.name
 
@@ -287,9 +291,7 @@ class ActionModule(ActionBase):
             return None
 
     def _get_git_repository (self, args):
-        if 'git' not in args:
-            return None
-        return args['git'].get('repository', None)
+        return self._walk_args('git', 'repository')
 
     def _has_build_steps(self, args):
         return self._get_source_stanza(args) is not None
@@ -364,7 +366,7 @@ class ActionModule(ActionBase):
         triggers = args.get('triggers', [])
         dockerfile_text = self._get_immediate_dockerfile(args)
 
-        if args.get('from', {}).get('kind', {}) == 'ImageStreamTag':
+        if self._walk_args('from', 'kind') == 'ImageStreamTag':
             # Explicit "from" struct in task, with internal
             # ImageStream; trigger on it.
             triggers.append({
@@ -429,7 +431,15 @@ class ActionModule(ActionBase):
 
             retval.append(local)
         return retval
-        
+
+    def _walk_args (self, *path):
+        walk = self._task.args
+        for elt in path:
+            if isinstance(walk, dict) and elt in walk:
+                walk = walk[elt]
+            else:
+                return None
+        return walk
 
 def deepmerge(source, destination):
     """Found at https://stackoverflow.com/a/20666342/435004"""
