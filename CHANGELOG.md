@@ -1,5 +1,10 @@
 # 1.x release cycle
 
+## 1.9.0 (June 28th, 2023)
+
+- Refactor for future maintainability, might have introduced bugs, although I don't think so
+- Support immediate, multi-stage Dockerfiles
+
 ## 1.8.0 (June 12th, 2023)
 
 - Bugfix: Ansible introduced yet another string wrapper class in its Jinja fixture, which needs a special case passthrough for YAML serialization
