@@ -371,7 +371,7 @@ class ActionModule(ActionBase):
             # ImageStream; trigger on it.
             triggers.append({
                 'type': 'ImageChange',
-                'imageChange': { 'from': frm }
+                'imageChange': { 'from': self._task.args['from'] }
             })
         elif dockerfile_text is not None:
             for local in self._parse_local_from_lines(dockerfile_text):
