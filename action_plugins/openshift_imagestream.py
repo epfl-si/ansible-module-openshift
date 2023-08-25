@@ -100,7 +100,7 @@ class ActionModule(ActionBase):
         self.run = Run()
         self.run.name = self._walk_args('metadata', 'name')
         if not self.run.name:
-            self;run.name = self._walk_args('name')
+            self.run.name = self._walk_args('name')
         if not self.run.name:
             raise AnsibleActionFail(
                 "Missing field `name` in `openshift_imagestream`")
