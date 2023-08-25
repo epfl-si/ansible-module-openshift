@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.9.2 (Aug 25th, 2023)
+
+- Fix typo
+
 ## 1.9.1 (July 5th, 2023)
 
 - Fix boneheaded `NameError`
