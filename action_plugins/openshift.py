@@ -63,7 +63,7 @@ options:
       - The path to the oc (or kubectl) command
       - By default, look for an oc command in the PATH
   namespace:
-    required: false
+    required: true
     default: null
     description:
       - The namespace associated with the resource(s)

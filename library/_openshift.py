@@ -55,6 +55,12 @@ class OpenshiftRemoteTask(object):
 
         if self.module.params.get('namespace'):
             self.base_cmd.append('--namespace=' + self.module.params.get('namespace'))
+        else:
+            # https://github.com/epfl-si/ansible-module-openshift/issues/8
+            # TODO: if (or when) we have a use case for non-namespaced resources,
+            # we should carve out an exception.
+            raise AnsibleError('Must provide namespace')
+            
 
         self.all = self.module.params.get('all')
         self.force = self.module.params.get('force')
