@@ -1,9 +1,31 @@
+"""Parse a string of the form `foo.bar/myimage:mytag`
+
+This is a convenient helper to compute various fields in `openshift` and
+`openshift_imagestream` that are related to images.
+
+Usage:
+
+    "ubuntu:latest" | parse_external_docker_tag
+
+returns a Python structure that would read like this in YAML:
+
+    shortname: ubuntu
+    uri: docker.io/library/ubuntu
+    tag: latest
+    qualified: docker.io/library/ubuntu:latest
+
+Additionally, if the optional `mirrored_base` parameter is set, e.g.
+
+    "ubuntu:latest" | parse_external_docker_tag(mirrored_base="si-quay.epfl.ch/my-namespace")
+
+then the result will contain an additional key like this,
+
+    # ...
+    mirrored: si-quay.epfl.ch/my-namespace/ubuntu:latest
+
+"""
 
 class FilterModule(object):
-    '''
-    Parse a string of the form `foo.bar/myimage:mytag`
-    '''
-
     def filters(self):
         return {
             'parse_external_docker_tag': self.parse_external_docker_tag
