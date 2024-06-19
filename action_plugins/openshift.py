@@ -242,17 +242,17 @@ class ActionModule(ActionBase):
         deepmerge(result_flags, self.__result)
 
     def _sane_yaml_serialize(self, struct):
-        """Don't get me started on Python string types.
-
-        The Ansible bugware to patch over same is nothing to be proud
-        of either...
-        """
+        """Convert `struct` into YAML, sans Ansible's custom types."""
         stringio = StringIO()
         dumper = yaml.Dumper(stringio)
 
         def represent_string(dumper, data):
             """Represent a string as a string. Crazy, I know."""
-            return dumper.represent_data(str(data))
+            data_str = str(data)
+            # This doesn't cut it in Ansible 7+:
+            if hasattr(data_str, '_strip_unsafe'):
+                data_str = data_str._strip_unsafe()
+            return dumper.represent_data(data_str)
 
         dumper.add_representer(AnsibleUnicode, represent_string)
         dumper.add_representer(AnsibleUnsafeText, represent_string)
