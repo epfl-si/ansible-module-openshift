@@ -1,5 +1,9 @@
 # 1.x release cycle
 
+## 1.10.1
+
+- Fix YAML serialization for Ansible versions 7 through 10 (or so)
+
 ## 1.10.0
 
 - Introduce `parse_external_docker_tag` filter (lifted from wp-ops)
