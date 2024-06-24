@@ -1,5 +1,10 @@
 # 1.x release cycle
 
+## 1.10.2
+
+This release is dentical to 1.10.1; it was created to disprove a
+coy cop-out from Red Hat Support regarding Ansible Galaxy's API.
+
 ## 1.10.1
 
 - Fix YAML serialization for Ansible versions 7 through 10 (or so)
