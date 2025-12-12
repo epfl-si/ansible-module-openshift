@@ -1,5 +1,6 @@
-`epfl_si.ansible_module_openshift`
-=========
+# DEPRECATED
+
+Consider using [the `epfl_si.k8s` Ansible collection](https://galaxy.ansible.com/ui/repo/published/epfl_si/k8s/) instead.
 
 This role provides the `openshift` module, that you can use to create
 an `openshift` task:
